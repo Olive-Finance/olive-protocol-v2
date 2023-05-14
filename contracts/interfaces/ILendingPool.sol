@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.9;
+
+interface ILendingPool {
+
+    function borrow(address _user, uint256 _amount) external returns (uint256);
+
+    function fund(address _user, uint256 _amount) external returns (bool);
+
+    function healthFactor(address _user) external view returns (uint256);
+
+    function interestRate() external view returns (uint256);
+
+    function repay(address _user, uint256 _amount, uint256 _shares, bool _tbc) external returns (bool);
+
+    function liquidate(address[] calldata _users) external returns (bool);
+
+    function submitCollateral(address _user, uint256 _amount) external returns (bool);
+
+    function retrieveCollateral(address _user, uint256 _amount) external returns (bool);
+    
+    function getTotalSharesToWithdraw(address _user) external view returns (uint256);
+}

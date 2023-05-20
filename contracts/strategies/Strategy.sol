@@ -10,7 +10,7 @@ import {Allowed} from '../utils/modifiers/Allowed.sol';
 contract Strategy is IStrategy, Allowed {
     //List of addresses
     address private _asset;
-    address private _lpToken;
+    address private _sToken;
 
     address private _treasury;
 
@@ -23,11 +23,11 @@ contract Strategy is IStrategy, Allowed {
 
     constructor(
         address asset,
-        address lpToken,
+        address sToken,
         address treasury
     ) Allowed(msg.sender) {
         _asset = asset;
-        _lpToken = lpToken;
+        _sToken = sToken;
         _treasury = treasury;
         store._totalFreeFunds = 0;
         store._totalLPFunds = 0;
@@ -37,7 +37,7 @@ contract Strategy is IStrategy, Allowed {
         require(_user != address(0), "Strat: Null address");
         require(_amount > 0, "STR: Zero/Negative amount");
 
-        IMintable lpToken = IMintable(_lpToken);
+        IMintable lpToken = IMintable(_sToken);
         lpToken.mint(_user, _amount);
     }
 
@@ -45,22 +45,15 @@ contract Strategy is IStrategy, Allowed {
         address _user,
         uint256 _amount
     ) external override returns (uint256) {
-        // todo Withdraw - for shares, lp token
-        // todo Deposit - lp token - Single strategy valut
-        // user, valut, strategy address
-        // todo Check around on the security point of view
-
         require(_amount > 0, "STR: Zero/Negative amount");
 
-        address _depositor = msg.sender; // Olive address as it will be calling the deposit function
-
-        IERC20 lpToken = IERC20(_lpToken); // strategy shares
-        uint256 tokenBalance = lpToken.balanceOf(_depositor);
+        IERC20 sToken = IERC20(_sToken); // strategy shares
+        uint256 tokenBalance = sToken.balanceOf(_user);
 
         require(tokenBalance >= _amount, "STR: Insufficient balance");
 
-        IMintable lpBurnToken = IMintable(_lpToken);
-        lpBurnToken.burn(_depositor, _amount);
+        IMintable sBurnToken = IMintable(_sToken);
+        sBurnToken.burn(_user, _amount);
 
         IERC20 asset = IERC20(_asset); // Transfer the amount
         asset.transfer(_user, _amount);

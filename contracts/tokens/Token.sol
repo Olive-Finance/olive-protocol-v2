@@ -6,8 +6,9 @@ import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IER
 import '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {Allowed} from '../utils/modifiers/Allowed.sol';
+import "hardhat/console.sol";
 
-contract LPToken is IERC20, IERC20Metadata, IMintable, Allowed {
+contract Token is IERC20, IERC20Metadata, IMintable, Allowed {
     using SafeMath for uint256;
 
     // Token storable information

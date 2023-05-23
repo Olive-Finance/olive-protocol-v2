@@ -1,5 +1,6 @@
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import "@nomiclabs/hardhat-web3";
 const fs = require("fs");
 
 task('accounts', "Prints the list of accounts", async (taskArgs, hre) => {
@@ -8,6 +9,44 @@ task('accounts', "Prints the list of accounts", async (taskArgs, hre) => {
   for (const account of accounts) {
     console.log(account.address);
   }
+});
+
+task ('dc', 'Deploying custome contracts', async(taskArgs, hre)=>{
+  //ASSET - GLP
+  const Receive = await hre.ethers.getContractFactory("Receiver");
+  const rec = await Receive.deploy('0x3528942Bf01874cB51A79ac32E3FC839Ae2a1367');
+  await rec.deployed();
+  console.log("Receiver: ", rec.address);
+});
+
+task('w3', "Executes native code", async (taskArgs, Web3) => {
+  const accounts = await Web3.web3.eth.getAccounts();
+  const w3 = Web3.web3.eth;
+  const blockNumber = await w3.getBlockNumber();
+  console.log("Block numer: ", blockNumber);
+
+  const contractAddr = '0x5FbDB2315678afecb367f032d93F642f64180aa3';
+
+  const response = await w3.sendTransaction({
+    from: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199',
+    to: contractAddr,
+    value: Web3.web3.utils.toWei('10', 'ether')
+  })
+  .on('transactionHash', function(hash){
+    console.log('Transaction hash:', hash);
+  })
+  .on('receipt', function(receipt){
+    console.log('Receipt:', receipt);
+  })
+  .on('error', function(error){
+    console.error('Error:', error);
+  });
+
+  console.log("response: ", response);
+
+  let balance = await w3.getBalance('0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199');
+  console.log(balance);
+
 });
 
 task("deploy", "Deploys contract, get wallets, and outputs files", async (taskArgs, hre) => {

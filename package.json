@@ -6,7 +6,9 @@
     "test:local": "./node_modules/.bin/hardhat --config hardhat.config.local.ts test",
     "compile": "./node_modules/.bin/hardhat --config hardhat.config.local.ts compile",
     "clean": "./node_modules/.bin/hardhat --config hardhat.config.local.ts clean",
-    "console": "./node_modules/.bin/hardhat console --network localhost"
+    "console": "./node_modules/.bin/hardhat console --network localhost",
+    "w3": "./node_modules/.bin/hardhat --config hardhat.config.local.ts --network localhost w3",
+    "dc": "./node_modules/.bin/hardhat --config hardhat.config.local.ts --network localhost dc"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
@@ -15,6 +17,7 @@
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-etherscan": "^3.1.7",
     "@nomiclabs/hardhat-waffle": "^2.0.5",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
     "@openzeppelin/contracts": "^4.8.3",
     "@typechain/hardhat": "^6.1.6",
     "@types/chai": "^4.3.5",
@@ -26,6 +29,7 @@
     "solidity-coverage": "^0.8.2",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4",
+    "web3": "^1.10.0",
     "yarn": "^1.22.19"
   }
 }

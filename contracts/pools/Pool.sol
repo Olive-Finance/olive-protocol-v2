@@ -29,6 +29,8 @@ contract Pool is ILendingPool, Allowed {
     uint256 private MAX_BPS = 10000;
     uint256 private liquidationThreshold = 9000;
     uint256 private constant SECONDS_IN_YEAR = 31536000;
+    uint256 private MAX_UTILIZATION = 0.8e4;
+    uint256 private MAX_ALLOWED_BORROW = 10000e8;
 
     mapping(address => uint256) private lastAccessed;
 
@@ -117,7 +119,9 @@ contract Pool is ILendingPool, Allowed {
         return true;
     }
 
-    function convertAmountToShares(uint256 _debtAmount) internal view returns (uint256) {
+    function convertAmountToShares(
+        uint256 _debtAmount
+    ) internal view returns (uint256) {
         return _debtAmount;
     }
 
@@ -163,5 +167,19 @@ contract Pool is ILendingPool, Allowed {
 
     function wantToken() external view override returns (address) {
         return _asset;
+    }
+
+    function maxAllowedUtilization() external view override returns (uint256) {
+        return MAX_UTILIZATION;
+    }
+
+    function maxAllowedAmount() external view override returns (uint256) {
+        uint256 _assets = poolStore._totalAssets;
+        uint256 _debts = poolStore._totalDebt;
+        _assets = _assets.add(_debts);
+        uint256 _maxAllowed = _assets.mul(MAX_UTILIZATION).div(MAX_BPS);
+        _maxAllowed = _maxAllowed.sub(_debts, 'POL: over borrowed');
+        _maxAllowed = _maxAllowed > MAX_ALLOWED_BORROW ? MAX_ALLOWED_BORROW : _maxAllowed;
+        return _maxAllowed;
     }
 }

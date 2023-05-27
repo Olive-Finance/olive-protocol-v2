@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.9;
 
-import {IGLPManager} from '../interfaces/IGLPManager.sol';
+import {ILPManager} from '../interfaces/ILPManager.sol';
 import {Allowed} from '../utils/modifiers/Allowed.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
-contract GLPManager is IGLPManager, Allowed {
+contract GLPManager is ILPManager, Allowed {
     using SafeMath for uint256;
 
     address private _glpToken;

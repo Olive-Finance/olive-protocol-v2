@@ -8,7 +8,7 @@ import {IOliveV2} from './interfaces/IOliveV2.sol';
 import {ILendingPool} from './interfaces/ILendingPool.sol';
 import {IStrategy} from './interfaces/IStrategy.sol';
 import {Allowed} from './utils/modifiers/Allowed.sol';
-import {IGLPManager} from './interfaces/IGLPManager.sol';
+import {ILPManager} from './interfaces/ILPManager.sol';
 
 import "hardhat/console.sol";
 
@@ -70,21 +70,121 @@ contract OliveV2 is IOliveV2, Allowed {
         require((_leverage > 1 && _leverage <= 5), "OLV: No leverage");
         uint256 amountToBorrow = _leverage.sub(1).mul(_amount);
 
-        ILendingPool poolToBorrow = getLendingPoolForBorrow(); //Get the pool
+        (address[] memory _tokens, uint256[] memory _borrowed) = _borrowForUser(_contract, _depositor, amountToBorrow); // TODO - update to add the price component
 
-        IERC20 want = IERC20(poolToBorrow.wantToken());
-        uint256 borrowed = poolToBorrow.borrow(_contract, _depositor, amountToBorrow); // User would have got the asset tokens
+        require(_tokens.length == _borrowed.length, "OLV: Invalid borrow");
 
-        IGLPManager glpManager = IGLPManager(_glpManager);
-        bool isApproved = want.approve(_glpManager, borrowed);
-        require(isApproved, 'OLV: GLP approve failed');
+        uint256 glpMinted = 0;
+        uint8 i;
+        for (i = 0; i < _tokens.length; i += 1) {
+            uint256 borrowed = _borrowed[i];
 
-        uint256 glpMinted = glpManager.addLiquidityForAccount(_contract, poolToBorrow.wantToken(), borrowed); // todo add slippage
+            // This protects for any empty array values - Since the memory variable is used
+            // had to add this extra protection
+            if (borrowed <= 0) {
+                continue;
+            }
+            
+            uint256 minted = _mintLP(_tokens[i], borrowed);
+            glpMinted = glpMinted.add(minted);
+        }
 
         _depositForUser(_depositor, _amount, glpMinted);
 
         // todo - should we check the user balance; as a require
         return true;
+    }
+
+
+    /**
+     * This is the core function to interact with lending pools
+     * 
+     * Following cases are considere for implementation
+     *
+     * a. Get the pool with lowest utilization - waterfall model is implemented
+     * b. The total amount to be borrowed is less than the total pool size
+     * c. Multiple borrowings will be triggered and amount will be converted to underlying LP token
+     * 
+     * @param _borrower the account to which the tokens would land
+     * @param _user on who's behalf the tokens are borrowed
+     * @param _toBorrow total amount of tokens to be borrowed
+     */
+    function _borrowForUser(
+        address _borrower, 
+        address _user, 
+        uint256 _toBorrow
+        ) internal returns(address[] memory, uint256[] memory) {
+        uint256 _toBorrowFromPool = _toBorrow;
+        uint8 i;
+        uint256 size = _pools.length;
+        address[] memory _tokens = new address[] (size);
+        uint256[] memory _borrowed = new uint256[] (size);
+
+        // Do a validation of total size of pool to be less than _toBorrow
+        require(_getTotalBorrowable() >= _toBorrow, 'OLV: Insuffient borrow');
+
+        // Iterate over the pools and borrow the amounts
+        for (i = 0; i < _pools.length; i += 1) {
+            ILendingPool _loaded = _pools[i];
+            uint256 _borrowLimit = _loaded.maxAllowedAmount();
+            uint256 _amount = _toBorrowFromPool > _borrowLimit ? _borrowLimit : _toBorrowFromPool;
+            if (_amount <= 0 ) {
+                continue;
+            }
+            uint256 borrowed = _executeBorrow(_loaded, _borrower, _user, _amount);
+            _tokens[i] = _loaded.wantToken();
+            _borrowed[i] = borrowed;
+            _toBorrowFromPool = _toBorrowFromPool.sub(borrowed, 'OLV: Fishy Transaction');
+            if (_toBorrowFromPool == 0) {
+                break;
+            }
+        }
+
+        if (_toBorrowFromPool > 0) {
+             revert('OLV: Insuffieint funds');
+        }
+        // return the list of assets and amounts returns two arrays
+        return (_tokens, _borrowed);
+    }
+
+    function _getTotalBorrowable() internal view returns (uint256) {
+        uint256 _totalBorrowable = 0;
+        uint8 i;
+        for (i = 0; i < _pools.length; i += 1) {
+            ILendingPool _loaded = _pools[i];
+            _totalBorrowable  = _totalBorrowable.add(_loaded.maxAllowedAmount());
+        }
+        return _totalBorrowable;
+    }
+
+    function _executeBorrow(
+        ILendingPool _pool, 
+        address _borrower, 
+        address _user, 
+        uint256 _toBorrow
+        ) internal returns (uint256) {
+        
+        IERC20 want = IERC20(_pool.wantToken());
+        uint256 balBeforeBorrow = want.balanceOf(_borrower);
+        uint256 borrowed = _pool.borrow(_borrower, _user, _toBorrow);
+        uint256 balAfterBorrow = want.balanceOf(_borrower);
+        balAfterBorrow = balAfterBorrow.sub(balBeforeBorrow, "OLV: Invalid borrow");
+
+        require(balAfterBorrow >= borrowed, "OLV: Invalid borrow");
+        return borrowed;
+    } 
+
+    function _mintLP(address _token, uint256 _borrowed) internal returns (uint256) {
+        address _borrower = address(this);
+        IERC20 want = IERC20(_token);
+        ILPManager glpManager = ILPManager(_glpManager);
+        bool isApproved = want.approve(_glpManager, _borrowed);
+        require(isApproved, 'OLV: GLP approve failed');
+
+        // todo add splippage
+        uint256 glpMinted = glpManager.addLiquidityForAccount(_borrower, _token, _borrowed); 
+
+        return glpMinted;
     }
 
     function _depositForUser(
@@ -142,7 +242,7 @@ contract OliveV2 is IOliveV2, Allowed {
             }
         } 
         return _minUtilPool;
-    }
+    } 
 
     function leverage(uint256 _toLeverage) external override returns (bool) {
         require((_toLeverage > 1 && _toLeverage <= 5), "OLV: No leverage");
@@ -164,7 +264,7 @@ contract OliveV2 is IOliveV2, Allowed {
         uint256 borrowed = poolToBorrow.borrow(_contract, user, amountToBorrow); //4x
 
         IERC20 want = IERC20(poolToBorrow.wantToken());
-        IGLPManager glpManager = IGLPManager(_glpManager);
+        ILPManager glpManager = ILPManager(_glpManager);
         bool isApproved = want.approve(_glpManager, borrowed);
         require(isApproved, 'OLV: GLP approve failed');
         uint256 glpMinted = glpManager.addLiquidityForAccount(_contract, poolToBorrow.wantToken(), borrowed); // todo add slippage
@@ -195,7 +295,7 @@ contract OliveV2 is IOliveV2, Allowed {
         uint256 collateral = oToken.balanceOf(user);
         require(_shares <= collateral, 'OLV: Low funds');
         
-        IGLPManager glpManager = IGLPManager(_glpManager);
+        ILPManager glpManager = ILPManager(_glpManager);
         (ILendingPool poolToRepay, uint256 debtBalance) = getLendingPoolForRepay(user);
 
         uint256 totalWants = transferWantToUser(user, glpManager, poolToRepay, _shares);
@@ -216,7 +316,7 @@ contract OliveV2 is IOliveV2, Allowed {
 
     function transferWantToUser(
         address user, 
-        IGLPManager glpManager, 
+        ILPManager glpManager, 
         ILendingPool pool, 
         uint256 shares
     ) internal returns (uint256) {

@@ -7,4 +7,6 @@ interface IStrategy {
     function withdraw(address _user, uint256 _amount) external returns (uint256);
 
     function harvest() external;
+
+    function balance() external view returns (uint256);
 }

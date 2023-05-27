@@ -21,4 +21,8 @@ interface ILendingPool {
     function debtToken() external view returns (address);
 
     function wantToken() external view returns (address);
+
+    function maxAllowedUtilization() external view returns (uint256);
+
+    function maxAllowedAmount() external view returns (uint256);
 }

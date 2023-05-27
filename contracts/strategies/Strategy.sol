@@ -62,4 +62,8 @@ contract Strategy is IStrategy, Allowed {
     }
 
     function harvest() external override {}
+
+    function balance() external view override returns (uint256) {
+        return store._totalLPFunds;
+    }
 }

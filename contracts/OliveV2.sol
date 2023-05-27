@@ -70,8 +70,20 @@ contract OliveV2 is IOliveV2, Allowed {
         require((_leverage > 1 && _leverage <= 5), "OLV: No leverage");
         uint256 amountToBorrow = _leverage.sub(1).mul(_amount);
 
-        (address[] memory _tokens, uint256[] memory _borrowed) = _borrowForUser(_contract, _depositor, amountToBorrow); // TODO - update to add the price component
+        uint256 glpMinted = _borrowAndMintLP(_contract, _depositor, amountToBorrow);
 
+        _depositForUser(_depositor, _amount, glpMinted);
+
+        return true;
+    }
+
+    function _borrowAndMintLP(address _borrower, address _user, uint256 _amount) internal returns (uint256) {
+        require(_borrower != address(0), "OLV: Invalid borrower");
+        require(_user != address(0), "OLV, Invalid user");
+        require(_amount > 0, "OLV: Invalid amount to borrow");
+
+        (address[] memory _tokens, uint256[] memory _borrowed) = _borrowForUser(_borrower, _user, _amount); // TODO - update to add the price component
+        
         require(_tokens.length == _borrowed.length, "OLV: Invalid borrow");
 
         uint256 glpMinted = 0;
@@ -84,15 +96,12 @@ contract OliveV2 is IOliveV2, Allowed {
             if (borrowed <= 0) {
                 continue;
             }
-            
+
             uint256 minted = _mintLP(_tokens[i], borrowed);
             glpMinted = glpMinted.add(minted);
         }
 
-        _depositForUser(_depositor, _amount, glpMinted);
-
-        // todo - should we check the user balance; as a require
-        return true;
+        return glpMinted;
     }
 
 
@@ -259,15 +268,7 @@ contract OliveV2 is IOliveV2, Allowed {
         uint256 amountToBorrow = _toLeverage.mul(1e2).sub(_currLeverage, 'OLV: Over leveraged!');
         amountToBorrow = amountToBorrow.mul(userAssets).div(1e2);
 
-        ILendingPool poolToBorrow = getLendingPoolForBorrow(); //Get the pool
-
-        uint256 borrowed = poolToBorrow.borrow(_contract, user, amountToBorrow); //4x
-
-        IERC20 want = IERC20(poolToBorrow.wantToken());
-        ILPManager glpManager = ILPManager(_glpManager);
-        bool isApproved = want.approve(_glpManager, borrowed);
-        require(isApproved, 'OLV: GLP approve failed');
-        uint256 glpMinted = glpManager.addLiquidityForAccount(_contract, poolToBorrow.wantToken(), borrowed); // todo add slippage
+        uint256 glpMinted = _borrowAndMintLP(_contract, user, amountToBorrow);
 
         _depositForUser(user, uint256(0), glpMinted);
         return true;
@@ -312,7 +313,6 @@ contract OliveV2 is IOliveV2, Allowed {
         require(this.hf(user) >=100, 'OLV: Health issue');
         return true;
     }
-
 
     function transferWantToUser(
         address user, 

@@ -66,14 +66,34 @@ contract OliveV2 is IOliveV2, Allowed {
         // Function calls to leverage the open positions
         require((_leverage > 1 && _leverage <= 5), "OLV: No leverage");
         uint256 amountToBorrow = _leverage.sub(1).mul(_amount);
-
-        console.log("Amount to Total Borrow: ", amountToBorrow);
-
         uint256 glpMinted = _borrowAndMintLP(_contract, _depositor, amountToBorrow);
 
         _depositForUser(_depositor, _amount, glpMinted);
 
         return true;
+    }
+
+    function getMaxAvailabilityPool() public view returns (ILendingPool, uint256) {
+        uint8 i;
+        ILendingPool _maxPool = _pools[0];
+        ILPManager lpManager = ILPManager(_lpManager);
+
+        uint256 _maxBorrowable = 0;
+        uint256 _totalBorrowable = 0;
+        for(i = 0; i < _pools.length; i += 1) {
+            ILendingPool temp = _pools[i];
+            address want = temp.wantToken();
+
+            uint256 _poolWant = temp.maxAllowedAmount();
+            _poolWant = lpManager.getPrice(want, _poolWant);
+            _totalBorrowable = _totalBorrowable.add(_poolWant);
+
+            if (_poolWant > _maxBorrowable) {
+                _maxPool = temp;
+                _maxBorrowable = _poolWant;
+            }
+        } 
+        return (_maxPool, _totalBorrowable);
     }
 
     /**
@@ -85,20 +105,24 @@ contract OliveV2 is IOliveV2, Allowed {
      * 
      * @param _borrower the account to which the tokens would land
      * @param _user on who's behalf the tokens are borrowed
-     * @param _amount total amount of tokens to be borrowed
+     * @param _amount total amount of tokens to be borrowed in LP Value
      */
     function _borrowAndMintLP(address _borrower, address _user, uint256 _amount) internal returns (uint256) {
         require(_borrower != address(0), "OLV: Invalid borrower");
         require(_user != address(0), "OLV, Invalid user");
         require(_amount > 0, "OLV: Invalid amount to borrow");
 
+        (ILendingPool pool,  uint256 totalBorrowable) = getMaxAvailabilityPool();
+
         // Do a validation of total size of pool to be less than _toBorrow
-        require(_getTotalBorrowable() >= _amount, 'OLV: Insuffient borrow');
-        (uint256 _poolBorrowed, uint256 glpMinted) = _borrowAndMintLPFromMaxPool(_borrower, _user, _amount);
+        require(totalBorrowable >= _amount, 'OLV: Insuffient borrow');
+
+        // Borrow from pool
+        (uint256 _poolBorrowed, uint256 lpMinted) = _borrowAndMintFromPool(pool, _borrower, _user, _amount);
 
         // Once the total amount is borrowed does not need to go to second function 
         if (_poolBorrowed >= _amount) {
-            return glpMinted;
+            return lpMinted;
         }
 
         uint256 remmaingBorrow = _amount.sub(_poolBorrowed, "OLV: Logical error");
@@ -118,13 +142,14 @@ contract OliveV2 is IOliveV2, Allowed {
             }
 
             uint256 minted = _mintLP(_tokens[i], borrowed);
-            glpMinted = glpMinted.add(minted);
+            lpMinted = lpMinted.add(minted);
         }
 
-        return glpMinted;
+        return lpMinted;
     }
 
-    function _borrowAndMintLPFromMaxPool(
+    function _borrowAndMintFromPool(
+        ILendingPool pool,
         address _borrower, 
         address _user, 
         uint256 _amount
@@ -133,14 +158,13 @@ contract OliveV2 is IOliveV2, Allowed {
         require(_user != address(0), "OLV, Invalid user");
         require(_amount > 0, "OLV: Invalid amount to borrow"); 
 
-        // First borrow from max availability pool
-        (ILendingPool pool, uint256 maxBorrowable) = getMaxAvailabilityPool();
+        uint256 maxBorrowable = pool.maxAllowedAmount();
         require(maxBorrowable >= 0, "OLV: Insufficient funds");
 
         uint256 toBorrow = maxBorrowable > _amount ? _amount : maxBorrowable; 
+        
         uint256 borrowed = _executeBorrow(pool, _borrower, _user, toBorrow);
         uint256 minted = _mintLP(pool.wantToken(),  borrowed);
-
         return (toBorrow, minted);
     }
 
@@ -209,10 +233,13 @@ contract OliveV2 is IOliveV2, Allowed {
         address _user, 
         uint256 _toBorrow
         ) internal returns (uint256) {
-        
+        ILPManager lpManager = ILPManager(_lpManager);
         IERC20 want = IERC20(_pool.wantToken());
+
+        uint256 _wantToBorrow = lpManager.getBurnPrice(address(want), _toBorrow);
+        
         uint256 balBeforeBorrow = want.balanceOf(_borrower);
-        uint256 borrowed = _pool.borrow(_borrower, _user, _toBorrow);
+        uint256 borrowed = _pool.borrow(_borrower, _user, _wantToBorrow);
         uint256 balAfterBorrow = want.balanceOf(_borrower);
         balAfterBorrow = balAfterBorrow.sub(balBeforeBorrow, "OLV: Invalid borrow");
 
@@ -258,7 +285,7 @@ contract OliveV2 is IOliveV2, Allowed {
         IStrategy strategy = IStrategy(_strategy);
         asset.transfer(_strategy, amount); 
 
-        strategy.deposit(address(this), amount); 
+        strategy.deposit(address(this), amount);
 
         require(this.hf(_user) > 100, "OLV: Deposit failed");
 
@@ -275,20 +302,7 @@ contract OliveV2 is IOliveV2, Allowed {
         return true;
     }
 
-    function getMaxAvailabilityPool() internal view returns (ILendingPool, uint256) {
-        uint8 i;
-        ILendingPool _maxPool = _pools[0];
-        uint256 _totalWant = 0;
-        for(i = 0; i < _pools.length; i += 1) {
-            ILendingPool temp = _pools[i];
-            uint256 _poolWant = temp.maxAllowedAmount();
-            if (_poolWant > _totalWant) {
-                _maxPool = temp;
-                _totalWant = _poolWant;
-            }
-        } 
-        return (_maxPool, _totalWant);
-    }
+    
 
     function leverage(uint256 _toLeverage) external override returns (bool) {
         require((_toLeverage > 1 && _toLeverage <= 5), "OLV: No leverage");
@@ -465,15 +479,19 @@ contract OliveV2 is IOliveV2, Allowed {
     }
 
 
-    function getDebtBalance(address _user) internal view returns (uint256) {
+    function getDebtBalance(address _user) public view returns (uint256) {
         uint8 i;
-        uint256 debtBalance;
+        uint256 debtBalance = 0;
 
         // todo convert the balance into asset
-
         for (i = 0; i < _pools.length; i += 1) {
-            IERC20 debtToken = IERC20(_pools[i].debtToken());
-            debtBalance = debtBalance.add(debtToken.balanceOf(_user));
+            ILendingPool temp = _pools[i];
+            IERC20 debtToken = IERC20(temp.debtToken());
+            address want = temp.wantToken();
+
+            ILPManager lpManager = ILPManager(_lpManager);
+            // todo - verify how the interest is added 
+            debtBalance += lpManager.getPrice(want, debtToken.balanceOf(_user));
         }
 
         return debtBalance;

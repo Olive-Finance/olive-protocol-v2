@@ -30,7 +30,6 @@ contract Pool is ILendingPool, Allowed {
     uint256 private liquidationThreshold = 9000;
     uint256 private constant SECONDS_IN_YEAR = 31536000;
     uint256 private MAX_UTILIZATION = 0.8e4;
-    uint256 private MAX_ALLOWED_BORROW = 10000e8;
 
     mapping(address => uint256) private lastAccessed;
 
@@ -179,7 +178,6 @@ contract Pool is ILendingPool, Allowed {
         _assets = _assets.add(_debts);
         uint256 _maxAllowed = _assets.mul(MAX_UTILIZATION).div(MAX_BPS);
         _maxAllowed = _maxAllowed.sub(_debts, 'POL: over borrowed');
-        _maxAllowed = _maxAllowed > MAX_ALLOWED_BORROW ? MAX_ALLOWED_BORROW : _maxAllowed;
         return _maxAllowed;
     }
 }

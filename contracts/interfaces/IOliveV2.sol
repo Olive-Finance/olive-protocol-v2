@@ -23,16 +23,9 @@ interface IOliveV2 {
     /**
      * Function to deleverage the number of debt shares. 
      * This function works the same as repay but deals with debt shares
-     * @param _shares - Amount of debt shares to be burned
+     * @param _toLeverage - Number of shares to leverage
      */
-    function deleverage(uint256 _shares) external returns (bool);
-
-    /**
-     * Function to repay asset tokens 
-     * @param _debtToken - debt Token on which user has taken debt
-     * @param _amount - Amount of asset tokens that are to be repaid to pool
-     */
-    function repay(address _debtToken, uint256 _amount) external returns (bool);
+    function deleverage(uint8 _toLeverage) external returns (bool);
 
     /**
      * Shares to withdraw, the withdraw is only allowed, whe HF > 1. Otherwise the transaction will be reverted.
@@ -47,13 +40,11 @@ interface IOliveV2 {
      */
     function closePosition() external returns (bool);
 
-
     // View Functions
     /**
      * A view function to get the share price for given 
-     * @param shareType - Type of share for which asset value is pulled
      */
-    function getPricePerShare(uint256 shareType) external view returns (uint256);
+    function getPricePerShare() external view returns (uint256);
 
     /**
      * A view function to get the list of withdrawable shares

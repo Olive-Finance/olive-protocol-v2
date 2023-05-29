@@ -97,13 +97,14 @@ contract Pool is ILendingPool, Allowed {
     }
 
     function repay(
+        address _fromAccount,
         address _user,
         uint256 _amount
     ) external override returns (bool) {
         require(_amount > 0, "POL: Zero/Negative amount");
 
         IERC20 asset = IERC20(_asset);
-        asset.transferFrom(_user, address(this), (_amount));
+        asset.transferFrom(_fromAccount, address(this), (_amount));
 
         poolStore._totalDebt = poolStore._totalDebt.sub(
             _amount,

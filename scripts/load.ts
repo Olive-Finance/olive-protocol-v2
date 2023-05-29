@@ -78,13 +78,12 @@ async function main() {
 
     // function to execute 
     await glp.mint(user, 100e8);
-    await usdc.mint(user, 1100e8);
-    await dai.mint(user, 1100e8);
-    await usdt.mint(user, 1100e8);
+    await usdc.mint(user, 1000e8);
+    await dai.mint(user, 100e8);
+    await usdt.mint(user, 100e8);
     
     // Approvals for olive vault
     await glp.approve(olive.address, 1000000e8);
-   
 
     await usdc.approve(olive.address, 1000000e8);
     await usdc.approve(glpManager.address, 1000000e8);
@@ -101,12 +100,12 @@ async function main() {
     await usdt.approve(lpUSDT.address, 1000000e8);
 
     // fund the pools
-    await lpUSDC.fund(user, 100e8);
+    await lpUSDC.fund(user, 1000e8);
     await lpDAI.fund(user, 100e8);
     await lpUSDT.fund(user, 100e8);
 
     // Set the mock price feed
-    await glpManager.setPrice(usdc.address, 1e4);
+    await glpManager.setPrice(usdc.address, 0.5e4);
     await glpManager.setPrice(dai.address, 1e4);
     await glpManager.setPrice(usdt.address, 1e4);
     
@@ -129,7 +128,9 @@ async function main() {
     // await coToken.balanceOf(strategy.address);
 
     // Call the deposit function
-    await olive.deposit(10e8, 1);
+    await olive.deposit(10e8, 5);
+    await olive.deposit(40e8, 5);
+    await olive.deleverage(2);
 
     await soToken.balanceOf(user);
     await soToken.balanceOf(olive.address);
@@ -148,6 +149,10 @@ async function main() {
     await usdt.balanceOf(user);
     await usdt.balanceOf(lpUSDT.address);
 
+    await usdc.balanceOf(olive.address);
+    await dai.balanceOf(olive.address);
+    await usdt.balanceOf(olive.address);
+
     // Call the deposit with leverage
     await olive.deposit(10e8, 5);
     await olive.hf(user);
@@ -155,7 +160,6 @@ async function main() {
     await olive.deleverage(30e8);
     await olive.hf(user);
 
-    await olive.repay(doUSDT.address, 10e8);
     await olive.hf(user);
 }
 

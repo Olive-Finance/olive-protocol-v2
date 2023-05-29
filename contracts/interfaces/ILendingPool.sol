@@ -12,7 +12,7 @@ interface ILendingPool {
 
     function interestRate() external view returns (uint256);
 
-    function repay(address _user, uint256 _amount) external returns (bool);
+    function repay(address _fromAccount, address _user, uint256 _amount) external returns (bool);
 
     function liquidate(address[] calldata _users) external returns (bool);
 

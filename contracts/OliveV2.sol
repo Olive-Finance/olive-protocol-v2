@@ -454,7 +454,7 @@ contract OliveV2 is IOliveV2, Allowed {
 
         lpRetrieved = lpRetrieved.sub(repaid, "OLV: Logic error");
 
-        (uint256 totaRepaid, uint256 lpBalance) = _repayPools(address(this), _user, lpRetrieved);
+        (, uint256 lpBalance) = _repayPools(address(this), _user, lpRetrieved);
 
         if (lpBalance > 0) {
             IERC20 asset = IERC20(_asset);
@@ -521,7 +521,7 @@ contract OliveV2 is IOliveV2, Allowed {
         require(_user != address(0), "OLV: Invalid user");
         require(_lpToBurn > 0, "Invalid LP Tokens");
 
-        (ILendingPool pool, uint256 debt) = getLendingPoolForRepay(_user); // debt is in LP
+        (ILendingPool pool, ) = getLendingPoolForRepay(_user); // debt is in LP
         return _repayToPool(pool, _lpBurner, _user, _lpToBurn);
     }
 
@@ -545,7 +545,7 @@ contract OliveV2 is IOliveV2, Allowed {
         return repaid;
     }
 
-    function _getDebtBalanceInLP(ILendingPool _pool, address _user) internal returns (uint256) {
+    function _getDebtBalanceInLP(ILendingPool _pool, address _user) internal view returns (uint256) {
         require(_user != address(0), "OLV : Invalid user");
 
         ILPManager lpManager = ILPManager(_lpManager);

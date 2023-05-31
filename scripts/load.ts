@@ -131,7 +131,7 @@ async function main() {
     await olive.deposit(10e8, 5e2);
     await olive.deposit(40e8, 5e2);
     await olive.deleverage(2);
-    
+
     await soToken.balanceOf(user);
     await soToken.balanceOf(olive.address);
     await soToken.balanceOf(strategy.address);

@@ -113,7 +113,6 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         );
     }
 
-
     // List of view functions
     function getCollateralInLP(address _user) public view returns (uint256) {
         require(_user != address(0), "OLV: Invalid address");
@@ -178,10 +177,19 @@ contract OliveV2 is IOlive, Pausable, Allowed {
     ) external  override view returns (uint256) {
         // todo - residual value fixes
         uint256 debt = getDebtInLP(_user);
-        uint256 totalWithdrawable = debt.mul(ONE_IN_DECIMAL_FOUR).div(LIQUIDATION_THRESHOLD);
-        IERC20 oToken = IERC20(_oToken);
-        uint256 collateral = oToken.balanceOf(_user);
-        return collateral.sub(totalWithdrawable, 'OLV: Under collateral'); 
+        uint256 collateral = getCollateralInLP(_user);
+        uint256 userLeverage = this.getCurrentLeverage(_user);
+        uint256 userHF = this.hf(_user);
+        if (userLeverage >= MAX_LEVERAGE) {
+            return 0;
+        }
+        if (userHF <= HF_THRESHOLD) {
+            return 0;
+        }
+        uint256 c1 = debt.mul(ONE_IN_DECIMAL_FOUR).div(LIQUIDATION_THRESHOLD);
+        uint256 c2 = debt.mul(MAX_LEVERAGE).div(MAX_LEVERAGE.sub(MIN_LEVERAGE));
+        c1 = c1 > c2 ? c1 : c2;
+        return collateral.sub(c1);
     }
 
     // Vault functions
@@ -369,7 +377,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         if (_Repaid < _Retrieved) {
             _asset.transfer(_user, _Retrieved.sub(_Repaid)); 
         }
-        
+
         return true;
     }
 

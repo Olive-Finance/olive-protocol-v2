@@ -378,6 +378,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
             _asset.transfer(_user, _Retrieved.sub(_Repaid)); 
         }
 
+        userTxnBlockStore[_user] = block.number;
         return true;
     }
 
@@ -442,6 +443,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         uint256 glpWithdrawn = _strategy.withdraw(_contract, _shares); // Tokens are with Olive
        
         _asset.transfer(_user, glpWithdrawn);
+        userTxnBlockStore[_user] = block.number;
         return true;
     }
 

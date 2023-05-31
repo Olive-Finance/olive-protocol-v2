@@ -31,6 +31,7 @@ task('w3', "Executes native code", async (taskArgs, Web3) => {
     from: '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199',
     to: contractAddr,
     value: Web3.web3.utils.toWei('10', 'ether')
+    
   })
   .on('transactionHash', function(hash){
     console.log('Transaction hash:', hash);
@@ -189,15 +190,13 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
     glp.address,
     oToken.address,
     strategy.address,
-    glpManager.address
+    glpManager.address,
+    lpUSDC.address,
+    1e2,
+    5e2
   );
   await olive.deployed()
   console.log("olive: ", olive.address);
-
-  // Setup the lending pools in Olive
-  await olive.setLendingPool(lpUSDC.address);
-  await olive.setLendingPool(lpDAI.address);
-  await olive.setLendingPool(lpUSDT.address);
 
   // Get generated signer wallets
   const accounts = await hre.ethers.getSigners();

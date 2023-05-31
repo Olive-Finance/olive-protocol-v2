@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-interface ILPManager { 
+interface IAssetManager { 
     function getPrice(address _asset, uint256 _value) external view returns (uint256);
 
     function getBurnPrice(address _asset, uint256 _value) external view returns (uint256);

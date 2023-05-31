@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-interface IOliveV2 {
+interface IOlive {
     
     // Contract payable functions
 
@@ -11,7 +11,7 @@ interface IOliveV2 {
      * @param _amount - Amount in token balance
      * @param _leverage - Leverage is an integer between 1 - X, where X is the max leverage controlled by the contract
      */
-    function deposit(uint256 _amount, uint8 _leverage) external returns (bool);
+    function deposit(uint256 _amount, uint16 _leverage) external returns (bool);
 
     /**
      * Function to leverage asset tokens, this function assumes user has already deposited assets in Olive
@@ -25,7 +25,7 @@ interface IOliveV2 {
      * This function works the same as repay but deals with debt shares
      * @param _toLeverage - Number of shares to leverage
      */
-    function deleverage(uint8 _toLeverage) external returns (bool);
+    function deleverage(uint16 _toLeverage) external returns (bool);
 
     /**
      * Shares to withdraw, the withdraw is only allowed, whe HF > 1. Otherwise the transaction will be reverted.

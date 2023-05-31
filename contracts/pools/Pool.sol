@@ -121,7 +121,7 @@ contract Pool is ILendingPool, Allowed {
 
     function convertAmountToShares(
         uint256 _debtAmount
-    ) internal view returns (uint256) {
+    ) internal pure returns (uint256) {
         return _debtAmount;
     }
 

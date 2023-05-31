@@ -4,22 +4,22 @@ pragma solidity ^0.8.9;
 import {ICashier} from '../interfaces/ICashier.sol';
 import {ILendingPool} from '../interfaces/ILendingPool.sol';
 import {Allowed} from '../utils/modifiers/Allowed.sol';
-import {IOliveV2} from '../interfaces/IOliveV2.sol';
+import {IOlive} from '../interfaces/IOlive.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {IStrategy} from '../interfaces/IStrategy.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
-import {ILPManager} from '../interfaces/ILPManager.sol';
+import {IAssetManager} from '../interfaces/IAssetManager.sol';
 
 import "hardhat/console.sol";
 
 contract Cashier is ICashier, Allowed {
-    IOliveV2 private _vault;
+    IOlive private _vault;
 
     constructor() Allowed(msg.sender) {}
 
     function setVault(address vault) public onlyAllowed returns (bool) {
         require(vault != address(0), "CSH: Invalid valult");
-        _vault = IOliveV2(vault);
+        _vault = IOlive(vault);
         return true;
     }
 

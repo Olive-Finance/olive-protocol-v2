@@ -80,6 +80,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
 
     function setTreasury(address treasury) public onlyAllowed returns (bool) {
         require(treasury != address(0), "OLV: Invalid treasury address");
+        require(treasury != address(this), "OLV: treasury can't be the current contract");
         _treasury = treasury;
         return true;
     }
@@ -209,7 +210,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         address _borrower = address(this);
 
         if (_leverage == MIN_LEVERAGE) {
-            return _depositForUser(_user, _uaAmount, uint256(0));
+            return _depositForUser(_borrower, _user, _uaAmount, uint256(0));
         }
 
         // Compute how much more assets to be zapped for covering the leverage
@@ -261,7 +262,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         require(!slipped, "OLV: Zapping slipped the position");
         
         // Once zapping happend, do the deposit and mint OTokens
-        return _depositForUser(_user, _userAsset, _zapped);
+        return _depositForUser(_borrower, _user, _userAsset, _zapped);
     }
 
     function _borrowNZap(
@@ -302,37 +303,34 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         uint256 actual,
         uint256 tolerance
     ) internal view returns (bool) {
-        if (actual >= computed) {
-            return false;
-        }
-        uint256 slip = computed.sub(actual).mul(ONE_IN_DECIMAL_TWO);
-        slip = slip.div(computed);
-        return slip > tolerance;
+        return computed > actual.mul(ONE_IN_DECIMAL_TWO.sub(tolerance)) ;
     }
 
     function _depositForUser(
+        address _borrower,
         address _user,
         uint _userOwned,
         uint _userBorrowed
     ) internal hfCheck returns (bool) {
+        require(_borrower != address(0), "OLV: Invalid borrower addresss");
         require(_user != address(0), "OLV: Invalid user address");
         
         uint256 amount = _userOwned.add(_userBorrowed);
 
-        uint256 prevContractBalance = _asset.balanceOf(address(this));
+        uint256 prevContractBalance = _asset.balanceOf(_borrower); // vault address
         bool verifyBalance = prevContractBalance >= _userBorrowed;
         require(verifyBalance, "OLV: Missing tokens");
 
         if (_userOwned > 0) {
-            _asset.transferFrom(_user, address(this), _userOwned);
-            uint256 postContractBalance = _asset.balanceOf(address(this));
+            _asset.transferFrom(_user, _borrower, _userOwned);
+            uint256 postContractBalance = _asset.balanceOf(_borrower);
             verifyBalance =
                 postContractBalance >= prevContractBalance.add(_userOwned);
             require(verifyBalance, "OLV: Missing tokens");
         }
 
         _asset.transfer(address(_strategy), amount);
-        _strategy.deposit(address(this), amount);
+        _strategy.deposit(_borrower, amount);
 
         IMintable oToken = IMintable(_oToken);
         oToken.mint(_user, amount);

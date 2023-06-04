@@ -74,6 +74,12 @@ async function main() {
     await oToken.grantRole(olive.address);
     // await coToken.grantRole(olive.address);
 
+    //Rate calculator
+    const RCL = await ethers.getContractFactory("RateCalculator");
+    const rcl = await RCL.attach('0x3Aa5ebB10DC797CAC828524e59A333d0A371443c');
+    await rcl.calculateBorrowRate(0.995e12);
+
+
     let user = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 
     // function to execute 

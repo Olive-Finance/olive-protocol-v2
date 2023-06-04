@@ -195,8 +195,14 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
     1e2,
     5e2
   );
-  await olive.deployed()
+  await olive.deployed();
   console.log("olive: ", olive.address);
+
+  // Rate Calculator 
+  const RCL = await hre.ethers.getContractFactory("RateCalculator");
+  const rcl = await RCL.deploy(0.03e12, 0.03e12, 0.03e12, 0.8e12);
+  await rcl.deployed();
+  console.log("rcl: ", rcl.address);
 
   // Get generated signer wallets
   const accounts = await hre.ethers.getSigners();

@@ -42,8 +42,6 @@ contract RateCalculator is IRateCalculator {
         // Rv = R0 + R1 + (U-UO)/(1-U) * R2
         uint256 first = _u.mul(_r1).div(_uo);
 
-        console.log("first: ", first.div(1e8));
-
         if (_u <= _uo) {
             return first.add(_r1);
         }
@@ -52,10 +50,6 @@ contract RateCalculator is IRateCalculator {
         console.log(second);
         second = second.mul(_r2);
         second = second.div(PINT.sub(_u));
-
-        console.log(PINT.sub(_u));
-
-        console.log("second:", second.div(1e8));
 
         return  second.add(_r1).add(_r2);
     }
@@ -69,13 +63,28 @@ contract RateCalculator is IRateCalculator {
 
         uint256 first = timeDiff.mul(_rate);
         first = first.div(PINT);
-
         first = first.add(PINT);
 
         return first;
     }
 
-    function calculateCompoundInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external view returns (uint256) {
-        return this.calculateSimpleInterest(_rate, _timeFrom, _timeTo); //replace with compound interest
+    function calculateCompoundInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external pure returns (uint256) {
+        uint256 exp = _timeTo.sub(uint256(_timeFrom));
+
+        if (exp == 0) {
+            return PINT;
+        }
+
+        uint256 expMinusOne = exp - 1;
+        uint256 expMinusTwo = exp > 2 ? exp - 2 : 0;
+        uint256 ratePerSecond = _rate / YEAR_IN_SECONDS;
+
+        uint256 basePowerTwo = ratePerSecond.mul(ratePerSecond).div(PINT);
+        uint256 basePowerThree = basePowerTwo.mul(ratePerSecond).div(PINT);
+
+        uint256 secondTerm = exp.mul(expMinusOne).mul(basePowerTwo) / 2;
+        uint256 thirdTerm = exp.mul(expMinusOne).mul(expMinusTwo).mul(basePowerThree) / 6;
+
+        return PINT.add(ratePerSecond.mul(exp)).add(secondTerm).add(thirdTerm);
     }
 }

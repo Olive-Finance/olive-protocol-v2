@@ -6,6 +6,8 @@ import {ILendingPool} from '../interfaces/ILendingPool.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {Allowed} from '../utils/modifiers/Allowed.sol';
+import {Reserve} from './library/Reserve.sol';
+
 import "hardhat/console.sol";
 
 contract Pool is ILendingPool, Allowed {
@@ -32,6 +34,8 @@ contract Pool is ILendingPool, Allowed {
     uint256 private MAX_UTILIZATION = 0.8e4;
 
     mapping(address => uint256) private lastAccessed;
+
+    Reserve.ReserveData public reserve; 
 
     constructor(
         address asset,

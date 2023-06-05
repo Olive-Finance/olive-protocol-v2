@@ -71,15 +71,17 @@ library Reserve {
         uint256 reserveLastUpdated = reserve._lastUpdatedTimestamp;
 
         // update liquidity index
+        uint256 prevSupplyIndex = reserve._supplyIndex;
         uint256 supplyRate = reserve._currentSupplyRate;
         uint256 supplyIndex = rcl.calculateSimpleInterest(supplyRate, uint256(reserveLastUpdated), currentTimestamp);
-        reserve._supplyIndex = supplyIndex;
+        reserve._supplyIndex = supplyIndex.mul(prevSupplyIndex).div(PINT);
         
         // update borrow index
+        uint256 prevBorrowIndex = reserve._borrowIndex;
         if(reserve._dToken.totalSupply() > 0) { // Don't have to compute borrow index as there is no borrow
             uint256 borrowRate = reserve._currentBorrowRate;
             uint256 borrowIndex = rcl.calculateCompoundInterest(borrowRate, reserveLastUpdated, currentTimestamp);
-            reserve._borrowIndex = borrowIndex;
+            reserve._borrowIndex = borrowIndex.mul(prevBorrowIndex).div(PINT);
         }
 
         // update timestamp
@@ -88,7 +90,7 @@ library Reserve {
 
     function getNormalizedIncome(ReserveData storage reserve) internal view returns (uint256) {
         uint40 reserveTimestamp = reserve._lastUpdatedTimestamp;
-        
+
         uint256 supplyIndex = reserve._supplyIndex;
 
         if (reserveTimestamp == uint40(block.timestamp)) {
@@ -96,7 +98,8 @@ library Reserve {
         }
 
         IRateCalculator rcl = reserve._rcl;
-        supplyIndex = rcl.calculateSimpleInterest(supplyIndex, reserveTimestamp, block.timestamp);
+        uint256 increment = rcl.calculateSimpleInterest(supplyIndex, reserveTimestamp, block.timestamp);
+        supplyIndex = increment.mul(supplyIndex).div(PINT);
         return supplyIndex;
     }
 
@@ -110,7 +113,8 @@ library Reserve {
         }
 
         IRateCalculator rcl = reserve._rcl;
-        borrowIndex = rcl.calculateCompoundInterest(borrowIndex, reserveTimestamp, block.timestamp);
+        uint256 increment = rcl.calculateCompoundInterest(borrowIndex, reserveTimestamp, block.timestamp);
+        borrowIndex = increment.mul(borrowIndex).div(PINT);
         return borrowIndex;
     }
 

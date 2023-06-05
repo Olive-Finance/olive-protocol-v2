@@ -65,37 +65,12 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await usdc.deployed();
   console.log("USDC: ", usdc.address);
 
-  // DAI
-  const DAI = await hre.ethers.getContractFactory("Token");
-  const dai = await DAI.deploy('DAI Token', 'DAI', 8);
-  await dai.deployed();
-  console.log("DAI: ", dai.address);
-
-  // USDT
-  const USDT = await hre.ethers.getContractFactory("Token");
-  const usdt = await DAI.deploy('USDT Token', 'DAI', 8);
-  await usdt.deployed();
-  console.log("USDT: ", usdt.address);
-
-
   // Debt Ledger tokens
   //Debt Token for USDC
   const DOUSDC = await hre.ethers.getContractFactory("Token");
   const doUSDC = await DOUSDC.deploy('DOUSDC Token', 'doUSDC.', 8);
   await doUSDC.deployed();
   console.log("doUSDC: ", doUSDC.address);
-
-  //Debt Token for DAI
-  const DODAI = await hre.ethers.getContractFactory("Token");
-  const doDAI = await DODAI.deploy('DODAI Token', 'doDAI', 8);
-  await doDAI.deployed();
-  console.log("doDai: ", doDAI.address);
-
-  //Debt Token for USDT
-  const DOUSDT = await hre.ethers.getContractFactory("Token");
-  const doUSDT = await DODAI.deploy('DOUSDT Token', 'doUSDT', 8);
-  await doUSDT.deployed();
-  console.log("doUSDT: ", doUSDT.address);
 
   // Fund Ledger tokens
   //Fund Token for USDC
@@ -104,17 +79,6 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await aUSDC.deployed();
   console.log("aUSDC: ", aUSDC.address);
 
-  //Fund Token for DAI
-  const ADAI = await hre.ethers.getContractFactory("Token");
-  const aDAI = await ADAI.deploy('ADAI Token', 'aDAI.', 8);
-  await aDAI.deployed();
-  console.log("aDAI: ", aDAI.address);
-
-  //Fund Token for USDT
-  const AUSDT = await hre.ethers.getContractFactory("Token");
-  const aUSDT = await AUSDT.deploy('AUSDT Token', 'aUSDT.', 8);
-  await aUSDT.deployed();
-  console.log("aUSDT: ", aUSDT.address);
   
   // Olive tokens for tokonomics 
 
@@ -130,43 +94,23 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await oToken.deployed();
   console.log("oToken: ", oToken.address);
 
-  // Collateral Receipt token - User holds the collateral token, while pool holds corresponding oTokens
-  const COToken = await hre.ethers.getContractFactory("Token");
-  const coToken = await OToken.deploy('CO Token', 'coGLP', 8);
-  await coToken.deployed();
-  console.log("coToken: ", coToken.address);
-
-
+  // Rate Calculator 
+  const RCL = await hre.ethers.getContractFactory("RateCalculator");
+  const rcl = await RCL.deploy(0.03e12, 0.03e12, 0.03e12, 0.8e12);
+  await rcl.deployed();
+  console.log("rcl: ", rcl.address);
+    
   // Lending pool definitions
   // USDC Lending pool
   const LPUSDC = await hre.ethers.getContractFactory("Pool");
   const lpUSDC = await LPUSDC.deploy(
-    usdc.address,
     aUSDC.address,
-    doUSDC.address
+    doUSDC.address,
+    usdc.address,
+    rcl.address
      );
   await lpUSDC.deployed();
   console.log("lpUSDC: ", lpUSDC.address);
-
-  // DAI Lending pool
-  const LPDAI = await hre.ethers.getContractFactory("Pool");
-  const lpDAI = await LPDAI.deploy(
-    dai.address,
-    aDAI.address,
-    doDAI.address
-     );
-  await lpUSDC.deployed();
-  console.log("lpDAI: ", lpDAI.address);
-
-   // USDT Lending pool
-  const LPUSDT = await hre.ethers.getContractFactory("Pool");
-  const lpUSDT = await LPUSDT.deploy(
-    usdt.address,
-    aUSDT.address,
-    doUSDT.address
-     );
-  await lpUSDC.deployed();
-  console.log("lpUSDT: ", lpUSDT.address);
 
   // Strategy initialization
   const Strategy = await hre.ethers.getContractFactory("Strategy");
@@ -198,11 +142,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await olive.deployed();
   console.log("olive: ", olive.address);
 
-  // Rate Calculator 
-  const RCL = await hre.ethers.getContractFactory("RateCalculator");
-  const rcl = await RCL.deploy(0.03e12, 0.03e12, 0.03e12, 0.8e12);
-  await rcl.deployed();
-  console.log("rcl: ", rcl.address);
+ 
 
   // Get generated signer wallets
   const accounts = await hre.ethers.getSigners();

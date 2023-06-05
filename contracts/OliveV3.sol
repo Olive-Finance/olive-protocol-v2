@@ -89,7 +89,7 @@ contract OliveV3 is IOlive, Allowed {
             ILendingPool temp = _pools[i];
             address want = temp.wantToken();
 
-            uint256 _poolWant = temp.maxAllowedAmount();
+            uint256 _poolWant = temp.maxAllowedAmount(); 
             _poolWant = lpManager.getPrice(want, _poolWant);
             _totalBorrowable = _totalBorrowable.add(_poolWant);
 

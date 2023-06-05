@@ -31,7 +31,8 @@ contract RateCalculator is IRateCalculator {
     }
 
     // Borrow rate * utilization
-    function calculateSupplyRate(uint256 _borrowRate, uint256 _u) external pure returns (uint256) {
+    function calculateSupplyRate(uint256 _borrowRate, uint256 _u) external view returns (uint256) {
+        console.log("I am called by :", msg.sender);
         return _borrowRate.mul(_u).div(PINT);
     }
 
@@ -39,7 +40,7 @@ contract RateCalculator is IRateCalculator {
     function calculateBorrowRate(uint256 _u) external view returns (uint256) {
         // Interest is a split function
         // Rv = R0 + U/UO * R1
-        // Rv = R0 + R1 + (U-UO)/(1-U) * R2
+        // Rv = R0 + R1 + (U-UO)/(1-UO) * R2
         uint256 first = _u.mul(_r1).div(_uo);
 
         if (_u <= _uo) {
@@ -49,7 +50,7 @@ contract RateCalculator is IRateCalculator {
         uint256 second = _u.sub(_uo);
         console.log(second);
         second = second.mul(_r2);
-        second = second.div(PINT.sub(_u));
+        second = second.div(PINT.sub(_uo));
 
         return  second.add(_r1).add(_r2);
     }

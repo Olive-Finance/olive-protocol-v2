@@ -7,119 +7,76 @@ async function main() {
 
     // Lending pools
     const USDC = await ethers.getContractFactory("Token");
-    const usdc = await USDC.attach('0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512')
-
-    const DAI = await ethers.getContractFactory("Token");
-    const dai = await DAI.attach('0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0')
-
-    const USDT = await ethers.getContractFactory("Token");
-    const usdt = await USDT.attach('0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9')
+    const usdc = await USDC.attach('0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512');
 
     // ATokens for pools
     const AUSDC = await ethers.getContractFactory("Token");
-    const aUSDC = await AUSDC.attach('0xa513E6E4b8f2a923D98304ec87F64353C4D5C853')
-
-    const ADAI = await ethers.getContractFactory("Token");
-    const aDAI = await ADAI.attach('0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6')
-
-    const AUSDT = await ethers.getContractFactory("Token");
-    const aUSDT = await AUSDT.attach('0x8A791620dd6260079BF849Dc5567aDC3F2FdC318')
-
+    const aUSDC = await AUSDC.attach('0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9');
+    
     // doTokens for pools
     const DOUSDC = await ethers.getContractFactory("Token");
-    const doUSDC = await DOUSDC.attach('0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9')
-
-    const DODAI = await ethers.getContractFactory("Token");
-    const doDAI = await DODAI.attach('0x5FC8d32690cc91D4c39d9d3abcBD16989F875707')
-
-    const DOUSDT = await ethers.getContractFactory("Token");
-    const doUSDT = await DOUSDT.attach('0x0165878A594ca255338adfa4d48449f69242Eb8F')
-
-    // Lending pools and grant roles for a and do tokens
-    const LPUSDC = await ethers.getContractFactory("Pool");
-    const lpUSDC = await LPUSDC.attach('0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82');
-    await aUSDC.grantRole(lpUSDC.address);
-    await doUSDC.grantRole(lpUSDC.address);
-
-    const LPDAI = await ethers.getContractFactory("Pool");
-    const lpDAI = await LPDAI.attach('0x9A676e781A523b5d0C0e43731313A708CB607508');
-    await aDAI.grantRole(lpDAI.address);
-    await doDAI.grantRole(lpDAI.address);
-
-    const LPUSDT = await ethers.getContractFactory("Pool");
-    const lpUSDT = await LPUSDT.attach('0x0B306BF915C4d645ff596e518fAf3F9669b97016');
-    await aUSDT.grantRole(lpUSDT.address);
-    await doUSDT.grantRole(lpUSDT.address);
-
-    // Olive vault and strategy tokens
-    const SOToken = await ethers.getContractFactory("Token");
-    const soToken = await SOToken.attach('0x610178dA211FEF7D417bC0e6FeD39F05609AD788');
-    
-    const OToken = await ethers.getContractFactory("Token");
-    const oToken = await OToken.attach('0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e');
-
-    // const COToken = await ethers.getContractFactory("Token");
-    // const coToken = await COToken.attach('0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0');
-
-    const Strategy = await ethers.getContractFactory('Strategy');
-    const strategy = await Strategy.attach('0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1');
-    await soToken.grantRole(strategy.address);
-
-    const GLPManager = await ethers.getContractFactory("GLPManager");
-    const glpManager = await GLPManager.attach('0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE');
-    await glp.grantRole(glpManager.address);
-
-    const Olive = await ethers.getContractFactory("OliveV2");
-    const olive = await Olive.attach('0x68B1D87F95878fE05B998F19b66F4baba5De1aed');
-    await oToken.grantRole(olive.address);
-    // await coToken.grantRole(olive.address);
+    const doUSDC = await DOUSDC.attach('0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0');
 
     //Rate calculator
     const RCL = await ethers.getContractFactory("RateCalculator");
-    const rcl = await RCL.attach('0x3Aa5ebB10DC797CAC828524e59A333d0A371443c');
-    await rcl.calculateBorrowRate(0.995e12);
+    const rcl = await RCL.attach('0x0165878A594ca255338adfa4d48449f69242Eb8F');
 
+    // Lending pools and grant roles for a and do tokens
+    const LPUSDC = await ethers.getContractFactory("Pool");
+    const lpUSDC = await LPUSDC.attach('0xa513E6E4b8f2a923D98304ec87F64353C4D5C853');
+    await aUSDC.grantRole(lpUSDC.address);
+    await doUSDC.grantRole(lpUSDC.address);
+
+    // Olive vault and strategy tokens
+    const SOToken = await ethers.getContractFactory("Token");
+    const soToken = await SOToken.attach('0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9');
+    
+    const OToken = await ethers.getContractFactory("Token");
+    const oToken = await OToken.attach('0x5FC8d32690cc91D4c39d9d3abcBD16989F875707');
+
+
+    const Strategy = await ethers.getContractFactory('Strategy');
+    const strategy = await Strategy.attach('0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6');
+    await soToken.grantRole(strategy.address);
+
+    const GLPManager = await ethers.getContractFactory("GLPManager");
+    const glpManager = await GLPManager.attach('0x8A791620dd6260079BF849Dc5567aDC3F2FdC318');
+    await glp.grantRole(glpManager.address);
+
+    const Olive = await ethers.getContractFactory("OliveV2");
+    const olive = await Olive.attach('0x610178dA211FEF7D417bC0e6FeD39F05609AD788');
+    await oToken.grantRole(olive.address);
+    // await coToken.grantRole(olive.address);
 
     let user = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+    
+    await rcl.calculateBorrowRate(0.995e12);
+    await rcl.calculateSimpleInterest(0.02e12, 0, 365*86400)/1e12;
+    await rcl.calculateCompoundInterest(0.02e12, 0, 365*86400)/1e12;
+
 
     // function to execute 
     await glp.mint(user, 100e8);
     await usdc.mint(user, 1000e8);
-    await dai.mint(user, 100e8);
-    await usdt.mint(user, 100e8);
-    
+   
     // Approvals for olive vault
     await glp.approve(olive.address, 1000000e8);
-
-    await usdc.approve(olive.address, 1000000e8);
-    await usdc.approve(glpManager.address, 1000000e8);
-    await dai.approve(olive.address, 1000000e8);
-    await dai.approve(glpManager.address, 1000000e8);
-    await usdt.approve(olive.address, 1000000e8);
-    await usdt.approve(glpManager.address, 1000000e8);
-
-    await oToken.approve(olive.address, 100000e8);
-
-    // Approvals for olive vault
-    await usdc.approve(lpUSDC.address, 1000000e8);
-    await dai.approve(lpDAI.address, 1000000e8);
-    await usdt.approve(lpUSDT.address, 1000000e8);
-
+    await usdc.approve(lpUSDC.address, 1e14);
+   
     // fund the pools
-    await lpUSDC.fund(user, 1000e8);
-    await lpDAI.fund(user, 100e8);
-    await lpUSDT.fund(user, 100e8);
+    await lpUSDC.fund(user, 100e8);
+    
 
     // Set the mock price feed
     await glpManager.setPrice(usdc.address, 0.5e4);
-    await glpManager.setPrice(dai.address, 1e4);
-    await glpManager.setPrice(usdt.address, 1e4);
-    
+
+    1685939886
+    1685939924
+
 
     // Allow Olive contract to borrow from the pool
     await lpUSDC.grantRole(olive.address);
-    await lpDAI.grantRole(olive.address);
-    await lpUSDT.grantRole(olive.address);
+
 
     await glp.balanceOf(user);
     await glp.balanceOf(olive.address);
@@ -143,22 +100,13 @@ async function main() {
     await soToken.balanceOf(strategy.address);
 
     await doUSDC.balanceOf(user);
-    await doDAI.balanceOf(user);
-    await doUSDT.balanceOf(user);
-
+   
     await usdc.balanceOf(user);
     await usdc.balanceOf(lpUSDC.address);
 
-    await dai.balanceOf(user);
-    await dai.balanceOf(lpDAI.address);
-
-    await usdt.balanceOf(user);
-    await usdt.balanceOf(lpUSDT.address);
-
+    
     await usdc.balanceOf(olive.address);
-    await dai.balanceOf(olive.address);
-    await usdt.balanceOf(olive.address);
-
+    
     // Call the deposit with leverage
     await olive.deposit(10e8, 5);
     await olive.hf(user);

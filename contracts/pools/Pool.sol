@@ -12,46 +12,72 @@ import "hardhat/console.sol";
 
 contract Pool is ILendingPool, Allowed {
     using SafeMath for uint256;
+    using Reserve for Reserve.ReserveData;
 
-    //List of addresses
-    address private _asset; // asset a.k.a want token
-    address private _aToken; // token for liquidity providers
-    address private _doToken; // debt token represented as collateral
-
-    struct PoolStorage {
-        uint256 _totalAssets;
-        uint256 _totalDebt;
-        uint256 _totalFees;
-        uint256 _lastComputed;
-    }
-
-    PoolStorage private poolStore;
-
-    // Definition of constants
-    uint256 private MAX_BPS = 10000;
-    uint256 private liquidationThreshold = 9000;
-    uint256 private constant SECONDS_IN_YEAR = 31536000;
-    uint256 private MAX_UTILIZATION = 0.8e4;
-
-    mapping(address => uint256) private lastAccessed;
-
-    Reserve.ReserveData public reserve; 
+    Reserve.ReserveData public reserve;
 
     constructor(
-        address asset,
         address aToken,
-        address doToken
+        address dToken,
+        address want,
+        address rcl
     ) Allowed(msg.sender) {
-        // Setting the address
-        _asset = asset;
-        _aToken = aToken;
-        _doToken = doToken;
+        // Initiating the reserve
+        reserve.init(aToken, dToken, want, rcl, address(this));
+    }
 
-        // Pool storage initialization
-        poolStore._lastComputed = block.timestamp;
-        poolStore._totalAssets = 0;
-        poolStore._totalDebt = 0;
-        poolStore._totalFees = 0;
+    // View functions
+    function _totalBorrowedDebt() internal view returns (uint256) {
+        IERC20 dToken = reserve._dToken;
+        uint256 supply = dToken.totalSupply();
+        return supply.mul(reserve.getNormalizedDebt()).div(Reserve.PINT);
+    }
+
+    function _totalLiquidity() internal view returns (uint256) {
+        address pool = reserve._pool;
+        IERC20 want = reserve._want;
+        return want.balanceOf(pool);
+    }
+
+    function utilization() external view override returns (uint256) {
+        uint256 debt = _totalBorrowedDebt();
+        uint256 supply = _totalLiquidity();
+
+        uint256 util = debt.mul(Reserve.PINT);
+        util = util.div(debt.add(supply));
+        return util;
+    }
+
+    function debtToken() external view override returns (address) {
+        IERC20 dToken = reserve._dToken;
+        return address(dToken);
+    }
+
+    function wantToken() external view override returns (address) {
+        IERC20 want = reserve._want;
+        return address(want);
+    }
+
+    function maxAllowedAmount() external view override returns (uint256) {
+        return uint256(1e28);
+    }
+
+    // Internal repeated functions
+    function reserveUpdates(
+        uint256 _amountAdded,
+        uint256 _amountRemoved
+    ) internal returns (bool) {
+        // Common function to be called befor execution of deposit, borrow, repay, withdraw
+        reserve.updateState();
+        uint256 totalBorrowedDebt = _totalBorrowedDebt();
+        uint256 totalLiquidity = _totalLiquidity();
+        reserve.updateRates(
+            totalBorrowedDebt,
+            totalLiquidity,
+            _amountAdded,
+            _amountRemoved
+        );
+        return true;
     }
 
     function borrow(
@@ -59,21 +85,23 @@ contract Pool is ILendingPool, Allowed {
         address _user,
         uint256 _amount
     ) external override onlyAllowed returns (uint256) {
+        require(_toAccount != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        poolStore._totalAssets = poolStore._totalAssets.sub(
-            _amount,
-            "ERC20: Low funds"
-        );
-        IERC20 asset = IERC20(_asset);
-        asset.transfer(_toAccount, _amount); //assets are transferred to _receiver
+        bool updated = reserveUpdates(uint256(0), _amount);
+        require(updated, "POL: State update failed");
 
-        IMintable doToken = IMintable(_doToken);
-        doToken.mint(_user, _amount);
+        IERC20 dToken = reserve._dToken;
+        IMintable doToken = IMintable(address(dToken));
 
-        lastAccessed[_user] = block.timestamp; // todo - do double check this if we really want it
-        poolStore._totalDebt = poolStore._totalDebt.add(_amount);
+        uint256 borrowIndex = reserve._borrowIndex;
+        uint256 scaledAmount = _amount.mul(Reserve.PINT).div(borrowIndex);
+
+        doToken.mint(_user, scaledAmount);
+
+        IERC20 want = reserve._want;
+        want.transfer(_toAccount, _amount);
 
         return _amount;
     }
@@ -82,17 +110,47 @@ contract Pool is ILendingPool, Allowed {
         address _user,
         uint256 _amount
     ) external override returns (bool) {
-        // Add the funds to Total Assets
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        IERC20 asset = IERC20(_asset);
-        asset.transferFrom(_user, address(this), _amount);
+        bool updated = reserveUpdates(_amount, uint256(0));
+        require(updated, "POL: State update failed");
 
-        IMintable aToken = IMintable(_aToken);
-        aToken.mint(_user, _amount);
+        IERC20 want = reserve._want;
+        want.transferFrom(_user, address(this), _amount);
 
-        poolStore._totalAssets = poolStore._totalAssets.add(_amount);
+        uint256 supplyIndex = reserve._supplyIndex;
+        uint256 scaledAmount = _amount.mul(Reserve.PINT).div(supplyIndex);
+
+        IERC20 aToken = reserve._aToken;
+        IMintable mintableAToken = IMintable(address(aToken));
+
+        mintableAToken.mint(_user, scaledAmount);
+
+        return true;
+    }
+
+    function withdraw(
+        address _user,
+        uint256 _amount
+    ) external override returns (bool) {
+        require(_user != address(0), "POL: Null address");
+        require(_amount > 0, "POL: Zero/Negative amount");
+
+        bool updated = reserveUpdates(uint256(0), _amount);
+        require(updated, "POL: State update failed");
+
+        uint256 supplyIndex = reserve._supplyIndex;
+        uint256 wantAmount = _amount.mul(supplyIndex).div(Reserve.PINT);
+
+        IERC20 aToken = reserve._aToken;
+        IMintable mintableAToken = IMintable(address(aToken));
+
+        mintableAToken.burn(_user, _amount);
+
+        IERC20 want = reserve._want;
+        want.transfer(_user, wantAmount);
+
         return true;
     }
 
@@ -106,83 +164,21 @@ contract Pool is ILendingPool, Allowed {
         uint256 _amount
     ) external override returns (bool) {
         require(_amount > 0, "POL: Zero/Negative amount");
+        require(_user != address(0), "POL: Null address");
 
-        IERC20 asset = IERC20(_asset);
-        asset.transferFrom(_fromAccount, address(this), (_amount));
+        bool updated = reserveUpdates(_amount, uint256(0));
+        require(updated, "POL: State update failed");
 
-        poolStore._totalDebt = poolStore._totalDebt.sub(
-            _amount,
-            "POL: No debt"
-        );
+        uint256 borrowIndex = reserve._borrowIndex;
+        uint256 toBurnAmount = _amount.mul(Reserve.PINT).div(borrowIndex);
 
-        uint256 _shares = convertAmountToShares(_amount);
+        IERC20 want = reserve._want;
+        want.transferFrom(_fromAccount, address(this), _amount);
 
-        IMintable doToken = IMintable(_doToken);
-        doToken.burn(_user, _shares);
+        IERC20 dToken = reserve._dToken;
+        IMintable doToken = IMintable(address(dToken));
+        doToken.burn(_user, toBurnAmount);
 
         return true;
-    }
-
-    function convertAmountToShares(
-        uint256 _debtAmount
-    ) internal pure returns (uint256) {
-        return _debtAmount;
-    }
-
-    function liquidate(
-        address[] calldata _users
-    ) external override returns (bool) {
-        // burn the oTokens from the vault
-        // Get the assets back
-        // Charge 10% fee
-    }
-
-    function setLiquidationThreshold(
-        uint256 _threshold
-    ) public onlyAllowed returns (bool) {
-        liquidationThreshold = _threshold;
-        return true;
-    }
-
-    function viewPool() public view returns (PoolStorage memory) {
-        return poolStore;
-    }
-
-    function viewUtilization() public view returns (uint256) {
-        return
-            (poolStore._totalDebt * 100) /
-            (poolStore._totalAssets + poolStore._totalDebt);
-    }
-
-    function utilization() external view override returns (uint256) {
-        return
-            poolStore._totalDebt.mul(1e4).div(
-                poolStore._totalAssets.add(poolStore._totalDebt)
-            );
-    }
-
-    function healthFactor(
-        address _user
-    ) external view override returns (uint256) {}
-
-    function debtToken() external view override returns (address) {
-        return _doToken;
-    }
-
-    function wantToken() external view override returns (address) {
-        return _asset;
-    }
-
-    function maxAllowedUtilization() external view override returns (uint256) {
-        return MAX_UTILIZATION;
-    }
-
-    function maxAllowedAmount() external view override returns (uint256) {
-        uint256 _assets = poolStore._totalAssets;
-        uint256 _debts = poolStore._totalDebt;
-        _assets = _assets.add(_debts);
-        uint256 _maxAllowed = _assets.mul(MAX_UTILIZATION).div(MAX_BPS);
-        _maxAllowed = _maxAllowed.sub(_debts, 'POL: over borrowed');
-        return _maxAllowed;
     }
 }

@@ -72,24 +72,21 @@ library Reserve {
 
         // update liquidity index
         uint256 supplyRate = reserve._currentSupplyRate;
-        supplyRate = rcl.calculateSimpleInterest(supplyRate, uint256(reserveLastUpdated), currentTimestamp);
-        reserve._currentSupplyRate = supplyRate;
+        uint256 supplyIndex = rcl.calculateSimpleInterest(supplyRate, uint256(reserveLastUpdated), currentTimestamp);
+        reserve._supplyIndex = supplyIndex;
         
         // update borrow index
-        if(reserve._dToken.totalSupply() <= 0) { // Don't have to compute borrow index as there is no borrow
-            return;
+        if(reserve._dToken.totalSupply() > 0) { // Don't have to compute borrow index as there is no borrow
+            uint256 borrowRate = reserve._currentBorrowRate;
+            uint256 borrowIndex = rcl.calculateCompoundInterest(borrowRate, reserveLastUpdated, currentTimestamp);
+            reserve._borrowIndex = borrowIndex;
         }
 
-        uint256 borrowRate = reserve._currentBorrowRate;
-        borrowRate = rcl.calculateCompoundInterest(borrowRate, reserveLastUpdated, currentTimestamp);
-        reserve._currentBorrowRate = borrowRate;
-        
         // update timestamp
         reserve._lastUpdatedTimestamp = uint40(currentTimestamp);
-        // todo emit state event
     }
 
-    function getNormalizedIncome(ReserveData storage reserve) internal returns (uint256) {
+    function getNormalizedIncome(ReserveData storage reserve) internal view returns (uint256) {
         uint40 reserveTimestamp = reserve._lastUpdatedTimestamp;
         
         uint256 supplyIndex = reserve._supplyIndex;
@@ -103,7 +100,7 @@ library Reserve {
         return supplyIndex;
     }
 
-    function getNormalizedDebt(ReserveData storage reserve) internal returns (uint256) {
+    function getNormalizedDebt(ReserveData storage reserve) internal view returns (uint256) {
         uint40 reserveTimestamp = reserve._lastUpdatedTimestamp;
         
         uint256 borrowIndex = reserve._borrowIndex;
@@ -123,7 +120,7 @@ library Reserve {
         uint256 liquidityAdded,
         uint256 liquidityRemoved
     ) internal {
-        if (totalBorrwedDebt <= 0) {
+        if (totalBorrwedDebt <= 0) { // saving the cost of computation
             return;
         }
 

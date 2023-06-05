@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {Allowed} from '../utils/modifiers/Allowed.sol';
 import {Reserve} from './library/Reserve.sol';
+import {IRateCalculator} from '../interfaces/IRateCalculator.sol';
 
 import "hardhat/console.sol";
 
@@ -15,6 +16,8 @@ contract Pool is ILendingPool, Allowed {
     using Reserve for Reserve.ReserveData;
 
     Reserve.ReserveData public reserve;
+
+    uint256 constant ONE_HUNDERED = 1e2;
 
     constructor(
         address aToken,
@@ -154,8 +157,17 @@ contract Pool is ILendingPool, Allowed {
         return true;
     }
 
-    function interestRate() external pure override returns (uint256) {
-        return 800;
+    function borrowRate() external view override returns (uint256) {
+        IRateCalculator rcl = reserve._rcl;
+        uint256 br = rcl.calculateBorrowRate(this.utilization());
+        return br.mul(ONE_HUNDERED).div(Reserve.PINT);
+    }
+
+    function supplyRate() external view override returns (uint256) {
+        IRateCalculator rcl = reserve._rcl;
+        uint256 u = this.utilization();
+        uint256 sr = rcl.calculateSupplyRate(rcl.calculateBorrowRate(u), u);
+        return sr.mul(ONE_HUNDERED).div(Reserve.PINT);
     }
 
     function repay(

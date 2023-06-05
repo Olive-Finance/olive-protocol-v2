@@ -3,16 +3,19 @@
 pragma solidity ^0.8.9;
 
 interface ILendingPool {
-
-    function borrow(address _toAccount, address _user, uint256 _amount) external returns (uint256);
-
+    // State functions
     function fund(address _user, uint256 _amount) external returns (bool);
 
     function withdraw(address _user, uint256 _amount) external returns (bool);
 
-    function interestRate() external view returns (uint256);
+    function borrow(address _toAccount, address _user, uint256 _amount) external returns (uint256);
 
     function repay(address _fromAccount, address _user, uint256 _amount) external returns (bool);
+
+    // View functions
+    function borrowRate() external view returns (uint256);
+
+    function supplyRate() external view returns (uint256);    
 
     function utilization() external view returns (uint256);
 

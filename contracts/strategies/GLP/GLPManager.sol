@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.9;
 
-import {IAssetManager} from '../interfaces/IAssetManager.sol';
-import {Allowed} from '../utils/modifiers/Allowed.sol';
-import {IMintable} from '../interfaces/IMintable.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
-contract GLPManager is IAssetManager, Allowed {
+import {IAssetManager} from '../../interfaces/IAssetManager.sol';
+import {IMintable} from '../../interfaces/IMintable.sol';
+
+contract GLPManager is IAssetManager {
     using SafeMath for uint256;
 
     address private _glpToken;
@@ -16,7 +16,7 @@ contract GLPManager is IAssetManager, Allowed {
 
     uint16 private MAX_BPS = 1e4;
 
-    constructor(address glpToken) Allowed(msg.sender) {
+    constructor(address glpToken) {
         _glpToken = glpToken;
     } 
 

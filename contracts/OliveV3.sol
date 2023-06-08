@@ -2,14 +2,17 @@
 pragma solidity ^0.8.9;
 
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import {IMintable} from './interfaces/IMintable.sol';
-import {IOlive} from './interfaces/IOlive.sol';
+
 import {ILendingPool} from './interfaces/ILendingPool.sol';
+import {IMintable} from './interfaces/IMintable.sol';
 import {IStrategy} from './interfaces/IStrategy.sol';
-import {Allowed} from './utils/modifiers/Allowed.sol';
 import {IAssetManager} from './interfaces/IAssetManager.sol';
-import {ICashier} from './interfaces/ICashier.sol';
+
+import {IOlive} from './interfaces/IOlive.sol';
+
+import {Allowed} from './interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
@@ -26,9 +29,6 @@ contract OliveV3 is IOlive, Allowed {
 
     //Address for LP Manager
     address public _lpManager;
-
-    //Cashier instance
-    ICashier private _cashier;
 
     //Olive treasury address
     address private _treasury;
@@ -61,7 +61,7 @@ contract OliveV3 is IOlive, Allowed {
     }
 
     // todo slipage - vault share condition
-    function deposit(uint256 _amount, uint16 _leverage) external override returns (bool) {
+    function deposit(uint256 _amount, uint16 _leverage, uint256 _expTokens, uint256 _slip) external override returns (bool) {
         address _depositor = msg.sender;
         address _contract = address(this);
         if (_leverage <= 1) {
@@ -345,7 +345,7 @@ contract OliveV3 is IOlive, Allowed {
         return (_maxDebtPool, dp);
     }
 
-    function withdraw(uint256 _shares) external override returns (bool) {
+    function withdraw(uint256 _shares, uint256 _expTokens, uint256 _slip) external override returns (bool) {
         address user = msg.sender;
         return _withdrawForUser(user, _shares);
     }

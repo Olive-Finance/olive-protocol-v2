@@ -3,9 +3,12 @@ pragma solidity ^0.8.9;
 
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
-import '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
+
 import {IMintable} from '../interfaces/IMintable.sol';
-import {Allowed} from '../utils/modifiers/Allowed.sol';
+
+import {Allowed} from '../interfaces/Allowed.sol';
+
 import "hardhat/console.sol";
 
 contract Token is IERC20, IERC20Metadata, IMintable, Allowed {

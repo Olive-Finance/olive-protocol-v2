@@ -3,10 +3,11 @@ pragma solidity ^0.8.9;
 
 import {IRateCalculator} from '../interfaces/IRateCalculator.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import {Allowed} from '../interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
-contract RateCalculator is IRateCalculator {
+contract RateCalculator is IRateCalculator, Allowed {
     using SafeMath for uint256;
     
     // Slopes for each of the interests
@@ -23,11 +24,24 @@ contract RateCalculator is IRateCalculator {
     // precision defined in
     uint256 constant PINT = 1e12;
 
-    constructor(uint256 r0, uint256 r1, uint256 r2, uint256 uo) {
+    constructor(uint256 r0, uint256 r1, uint256 r2, uint256 uo) Allowed(msg.sender) {
         _r0 = r0;
         _r1 = r1;
         _r2 = r2;
         _uo = uo;
+    }
+
+    // Restrictred setter functions
+    function setSlopes(uint256 r0, uint256 r1, uint256 r2) public onlyAllowed returns (bool) {
+        _r0 = r0;
+        _r1 = r1;
+        _r2 = r2;
+        return true;
+    }
+
+    function setUOpt(uint256 uo) public onlyAllowed returns (bool) {
+        _uo = uo;
+        return true;
     }
 
     // Borrow rate * utilization

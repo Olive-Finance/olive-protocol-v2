@@ -1,36 +1,38 @@
 // SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.9;
 
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import {IStrategy} from '../interfaces/IStrategy.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+
+import {IStrategy} from '../interfaces/IStrategy.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
-import {Allowed} from '../utils/modifiers/Allowed.sol';
 
-contract Strategy is IStrategy, Allowed {
+import {IGMXRouter}  from '../interfaces/IGMXRouter.sol';
+
+contract Strategy is IStrategy {
     //List of addresses
-    address private _asset;
-    address private _sToken;
+    IERC20 public _asset;
+    IERC20 public _native;
 
-    address private _treasury;
+    address public _sToken;
 
-    struct StrategyStorage {
-        uint256 _totalFreeFunds;
-        uint256 _totalLPFunds;
-    }
+    address public _treasury;
 
-    StrategyStorage private store;
+    IGMXRouter public _gmxRouter;
+
+    uint256 public lastHarvest;
+
+    using SafeMath for uint256;
 
     constructor(
         address asset,
         address sToken,
         address treasury
-    ) Allowed(msg.sender) {
-        _asset = asset;
+    ) {
+        _asset = IERC20(asset);
         _sToken = sToken;
         _treasury = treasury;
-        store._totalFreeFunds = 0;
-        store._totalLPFunds = 0;
     }
 
     function deposit(address _user, uint256 _amount) external override {
@@ -61,9 +63,29 @@ contract Strategy is IStrategy, Allowed {
         return _amount;
     }
 
-    function harvest() external override {}
+    function harvest() external override {
+        _gmxRouter.compound();   // Claim and restake esGMX and multiplier points
+        _gmxRouter.claimFees();
+        uint256 nativeBal = _native.balanceOf(address(this));
+        if (nativeBal > 0) {
+            //chargeFees(callFeeRecipient);
+            uint256 before = this.balance();
+            mintGlp();
+            uint256 wantHarvested = this.balance().sub(before);
+            
+            // todo emit and event with harvested amount and collect the fees
+            lastHarvest = block.timestamp;
+        }
+
+    }
+
+    // mint more GLP with the ETH earned as fees
+    function mintGlp() internal {
+        uint256 nativeBal = _native.balanceOf(address(this));
+        _gmxRouter.mintAndStakeGlp(address(_native), nativeBal, 0, 0);
+    }
 
     function balance() external view override returns (uint256) {
-        return store._totalLPFunds;
+        return _asset.balanceOf(address(this));
     }
 }

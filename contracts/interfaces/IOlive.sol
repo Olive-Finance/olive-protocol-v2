@@ -11,7 +11,7 @@ interface IOlive {
      * @param _amount - Amount in token balance
      * @param _leverage - Leverage is an integer between 1 - X, where X is the max leverage controlled by the contract
      */
-    function deposit(uint256 _amount, uint16 _leverage) external returns (bool);
+    function deposit(uint256 _amount, uint16 _leverage, uint256 _expTokens, uint256 slip) external returns (bool);
 
     /**
      * Function to leverage asset tokens, this function assumes user has already deposited assets in Olive
@@ -31,7 +31,7 @@ interface IOlive {
      * Shares to withdraw, the withdraw is only allowed, whe HF > 1. Otherwise the transaction will be reverted.
      * @param _shares - Amount of shares (AOTokens) to withdraw
      */
-    function withdraw(uint256 _shares) external returns (bool);
+    function withdraw(uint256 _shares, uint256 _expTokens, uint256 slip) external returns (bool);
 
     /**
      * Function to close the position 

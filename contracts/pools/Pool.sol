@@ -2,12 +2,14 @@
 pragma solidity ^0.8.9;
 
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import {ILendingPool} from '../interfaces/ILendingPool.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
-import {IMintable} from '../interfaces/IMintable.sol';
-import {Allowed} from '../utils/modifiers/Allowed.sol';
-import {Reserve} from './library/Reserve.sol';
+
+import {ILendingPool} from '../interfaces/ILendingPool.sol';
 import {IRateCalculator} from '../interfaces/IRateCalculator.sol';
+import {IMintable} from '../interfaces/IMintable.sol';
+import {Allowed} from '../interfaces/Allowed.sol';
+
+import {Reserve} from './library/Reserve.sol';
 
 import "hardhat/console.sol";
 

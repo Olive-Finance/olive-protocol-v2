@@ -217,8 +217,7 @@ contract Pool is ILendingPool, Allowed {
         if (balance == 0) {
             return balance;
         }
-        uint256 ndi = reserve.getNormalizedDebt();
-        return ndi.mul(balance).div(Reserve.PINT);
+        return reserve.getNormalizedDebt().mul(balance).div(Reserve.PINT);
     }
 
     function getIncomeInWant(address _user) public view returns (uint256) {

@@ -11,21 +11,21 @@ interface IOlive {
      * @param _amount - Amount in token balance
      * @param _leverage - Leverage is an integer between 1 - X, where X is the max leverage controlled by the contract
      */
-    function deposit(uint256 _amount, uint16 _leverage, uint256 _expTokens, uint256 slip) external returns (bool);
+    function deposit(uint256 _amount, uint256 _leverage, uint256 _expTokens, uint256 slip) external returns (bool);
 
     /**
      * Function to leverage asset tokens, this function assumes user has already deposited assets in Olive
      * @param _leverage - Number of shares to leverage
      * max leverage controlled by the contract
      */
-    function leverage(uint256 _leverage) external returns (bool);
+    function leverage(uint256 _leverage) external returns (uint256);
 
     /**
      * Function to deleverage the number of debt shares. 
      * This function works the same as repay but deals with debt shares
      * @param _toLeverage - Number of shares to leverage
      */
-    function deleverage(uint16 _toLeverage) external returns (bool);
+    function deleverage(uint256 _toLeverage) external returns (bool);
 
     /**
      * Shares to withdraw, the withdraw is only allowed, whe HF > 1. Otherwise the transaction will be reverted.
@@ -49,12 +49,12 @@ interface IOlive {
     /**
      * A view function to get the list of withdrawable shares
      */
-    function getTotalWithdrawableShares(address _user) external view returns (uint256);
+    function getBurnableShares(address _user) external view returns (uint256);
 
     /**
      * Function to get current leverage position
      */
-    function getCurrentLeverage(address _user) external view returns (uint256);
+    function getLeverage(address _user) external view returns (uint256);
 
     /**
      * Health factor

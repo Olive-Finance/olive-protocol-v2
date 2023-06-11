@@ -9,6 +9,8 @@ import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IAssetManager} from '../interfaces/IAssetManager.sol';
 import {IMintable} from '../../interfaces/IMintable.sol';
 
+import {Constants} from '';
+
 contract GLPManager is IAssetManager {
     using SafeMath for uint256;
 
@@ -79,11 +81,12 @@ contract GLPManager is IAssetManager {
         return true;
     }
 
-    function exhangeValue(
+    function exchangeValue(
         address _from,
         address _to,
         uint256 _amount
     ) external override view returns (uint256) {
+        // Example Pricefeed ->  [USDC, DAI, ETH], [0.96GLP, 1GLP, 1000GLP ]
         bool invert = _from == _glpToken;
 
         IERC20Metadata fromMeta = IERC20Metadata(_from);
@@ -93,9 +96,9 @@ contract GLPManager is IAssetManager {
         uint256 amount; 
 
         if (invert) {
-           amount = _amount.mul(MAX_BPS).div(value);
+           amount = _amount.mul(Constants.PINT).div(value);
         } else {
-            amount = _amount.mul(value).div(MAX_BPS);
+            amount = _amount.mul(value).div(Constants.PINT);
         }
 
         // decimal conversion

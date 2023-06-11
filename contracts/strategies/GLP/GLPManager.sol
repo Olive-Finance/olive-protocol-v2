@@ -9,7 +9,7 @@ import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IAssetManager} from '../interfaces/IAssetManager.sol';
 import {IMintable} from '../../interfaces/IMintable.sol';
 
-import {Constants} from '';
+import {Constants} from '../../utils/Contants.sol';
 
 contract GLPManager is IAssetManager {
     using SafeMath for uint256;
@@ -32,7 +32,7 @@ contract GLPManager is IAssetManager {
         require(_asset != address(0), "GLP: Invalid asset");
         require(_value > 0, "GLP: Invalid value");
 
-        uint256 glpToMint = this.exhangeValue(_asset, _glpToken, _value);
+        uint256 glpToMint = this.exchangeValue(_asset, _glpToken, _value);
 
         IERC20 asset = IERC20(_asset);
         uint256 balanceBefore = asset.balanceOf(address(this));
@@ -59,7 +59,7 @@ contract GLPManager is IAssetManager {
         require(_asset != address(0), "GLP: Invalid asset");
         require(_value > 0, "GLP: Invalid value");
 
-        uint256 _assetValue = this.exhangeValue(_glpToken, _asset, _value);
+        uint256 _assetValue = this.exchangeValue(_glpToken, _asset, _value);
 
         IERC20 asset = IERC20(_asset);
         uint256 balanceBefore = asset.balanceOf(address(this));

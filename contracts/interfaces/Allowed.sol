@@ -16,7 +16,6 @@ contract Allowed{
     /**
      * Modifier functions
      */
-
     modifier onlyOwner() {
         require(msg.sender == _ownerAddr, "ERC20: Not an owner");
         _;
@@ -30,8 +29,6 @@ contract Allowed{
     /**
      * List of setter functions  
      */
-
-
     function setOwner(address _owner) public onlyOwner returns (bool) {
         _ownerAddr = _owner;
         return true;

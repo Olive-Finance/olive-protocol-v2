@@ -246,7 +246,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         return _executeLeverage(_vault, _user, _collateral, _debt, _expectedShares, _slippage);
     }
 
-    function leverage(uint256 _leverage, uint256 _expectedShares, uint256 _slippage) external override returns (uint256) {
+    function leverage(uint256 _leverage, uint256 _expectedShares, uint256 _slippage) external override returns (bool) {
         address _vault = address(this);
         require(
             (_leverage > MIN_LEVERAGE && _leverage <= MAX_LEVERAGE),
@@ -264,9 +264,10 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         uint256 _collateral = posValue - debt;
 
         // _debt corresponds to, new debt in asset value
-        uint256 _debt = _leverage.sub(_userLeverage).mul(_collateral).div(Constants.PINT);
+        uint256 _debt = _leverage.sub(_userLeverage).mul(_collateral);
+        _debt = _debt.div(Constants.PINT);
 
-        return _executeLeverage(_vault, _user, uint256(0), _debt);
+        return _executeLeverage(_vault, _user, uint256(0), _debt, _expectedShares, _slippage);
     }
 
     function _executeLeverage(
@@ -361,13 +362,18 @@ contract OliveV2 is IOlive, Pausable, Allowed {
 
         _asset.transfer(address(_strategy), amount);
         _strategy.deposit(_vault, amount); // mint sToken
+        
+        return _mint(_user, amount);
+    }
 
+    function _mint(address _user, uint256 amount) internal returns (uint256) {
         IMintable oToken = IMintable(_oToken);
-        uint256 sharesToMint = amount.mul(Constants.PINT).div(this.getPricePerShare());
-        oToken.mint(_user, sharesToMint);
+        uint256 _sharesToMint = amount.mul(Constants.PINT).div(this.getPricePerShare());
+        oToken.mint(_user, _sharesToMint);
 
         userTxnBlockStore[_user] = block.number;
-        return sharesToMint;
+
+        return _sharesToMint;
     }
 
     function deleverage(
@@ -376,7 +382,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         uint256 _slippage
     ) external override blockCheck hfCheck returns (bool) {
         address _user = _msgSender();
-        return _deleverageForUser(_user, _leverage);
+        return _deleverageForUser(_user, _leverage, _repayAmount, _slippage);
     }
 
     function _deleverageForUser(
@@ -392,7 +398,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
             "OLV: Invalid deleverage position"
         );
 
-        uint256 _userLeverage = this.getCurrentLeverage(_user);
+        uint256 _userLeverage = this.getLeverage(_user);
         require(_leverage < _userLeverage, "OLV: Invalid leverage");
 
         uint256 collateral = getPosValueInAsset(_user); // Collateral in LP
@@ -401,18 +407,13 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         require(collateral >= debt, "OLV: Not enough collateral");
         uint256 _sharesToBurn = _userLeverage.sub(_leverage);
         _sharesToBurn = _sharesToBurn.mul(collateral.sub(debt));
-        _sharesToBurn = _sharesToBurn.div(Constants.PINT); //todo add price per share and convert shares to asset value
+        _sharesToBurn = _sharesToBurn.div(Constants.PINT); 
 
-        console.log("shares to collateral: ", collateral);
-        console.log("shares to debt: ", debt);
-        console.log("shares to burn: ", _sharesToBurn);
         require(_sharesToBurn < collateral, "OLV: Invalid burn");
 
-        // Burn the released oTokens
-        IMintable oBurnToken = IMintable(_oToken);
-        oBurnToken.burn(_user, _sharesToBurn);
-
-        (uint256 _Retrieved, uint256 _Repaid) = _zappNRepay(
+        _burn(_user, _sharesToBurn);
+    
+        (uint256 _Retrieved, uint256 _Repaid) = _sellNRepay(
             _burner,
             _user,
             _sharesToBurn,
@@ -428,7 +429,14 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         return true;
     }
 
-    function _zappNRepay(
+    function _burn(address _user, uint256 _sharesToBurn) internal returns (uint256) {
+        // Burn the released oTokens
+        IMintable oBurnToken = IMintable(_oToken);
+        oBurnToken.burn(_user, _sharesToBurn);
+        return _sharesToBurn;
+    }
+
+    function _sellNRepay(
         address _burner,
         address _user,
         uint256 _sharesToBurn,
@@ -503,7 +511,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         uint256 userShare = oToken.balanceOf(_user);
         require(_shares <= userShare, "OLV: Shares overflow");
         require(
-            _shares <= this.getTotalWithdrawableShares(_user),
+            _shares <= this.getBurnableShares(_user),
             "OLV: Over leveraged"
         );
 
@@ -517,8 +525,8 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         return true;
     }
 
-    function closePosition(address user) external override returns (bool) {
-        _deleverageForUser(_user, MIN_LEVERAGE);
+    function closePosition(address _user) external override returns (bool) {
+        _deleverageForUser(_user, MIN_LEVERAGE, uint256(0), uint256(0));
         uint256 remainingShares = this.getBurnableShares(_user);
         _withdrawForUser(_user, remainingShares);
         return true;

@@ -13,7 +13,7 @@ import {Allowed} from '../interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
-contract Token is IERC20, IERC20Metadata, IMintable, Allowed {
+contract OToken is IERC20, IERC20Metadata, IMintable, Allowed {
     using SafeMath for uint256;
 
     // Token storable information
@@ -67,7 +67,7 @@ contract Token is IERC20, IERC20Metadata, IMintable, Allowed {
         uint256 _amount
     ) external override returns (bool) {
         address spender = msg.sender;
-        uint256 maxTransferable = olive.getTotalWithdrawableShares(_from);
+        uint256 maxTransferable = olive.getBurnableShares(_from);
         require (_amount <= maxTransferable, "OLV: Can't undercollateralize the position");
         _allowances[_from][spender] = _allowances[_from][spender].sub(
             _amount,

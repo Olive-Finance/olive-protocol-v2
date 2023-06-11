@@ -11,7 +11,7 @@ import {Allowed} from '../interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
-contract Token is IERC20, IERC20Metadata, IMintable, Allowed {
+contract DToken is IERC20, IERC20Metadata, IMintable, Allowed {
     using SafeMath for uint256;
 
     // Token storable information

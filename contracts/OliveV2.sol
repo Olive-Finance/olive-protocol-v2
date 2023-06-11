@@ -307,16 +307,10 @@ contract OliveV2 is IOlive, Pausable, Allowed {
 
         // Execute borrow for total imputed want tokens
         IERC20 want = IERC20(_lendingPool.wantToken());
-        uint256 _before = want.balanceOf(_vault);
         uint256 _borrowed = _lendingPool.borrow(_vault, _user, _debtInWant);
-        uint256 _after = want.balanceOf(_vault);
-        require(
-            _after.sub(_before) >= _debtInWant,
-            "OLV: Borrow failed"
-        );
+        
 
         // Buy asset from borrowed amount
-        _before = _asset.balanceOf(_vault);
         bool isApproved = want.approve(address(_assetManager), _borrowed);
         require(isApproved, "OLV: GLP approve failed");
         uint256 _bought = _assetManager.addLiquidityForAccount(  // todo - have the simple names buy / sell for assets interface
@@ -324,8 +318,6 @@ contract OliveV2 is IOlive, Pausable, Allowed {
             address(want),
             _borrowed
         );
-        _after = _asset.balanceOf(_vault);
-        require(_after.sub(_before) >= _bought, "OLV: Buying failed");
 
         return _bought;
     }
@@ -349,15 +341,8 @@ contract OliveV2 is IOlive, Pausable, Allowed {
 
         uint256 amount = _collateral.add(_debt);
 
-        uint256 _before = _asset.balanceOf(_vault); // vault address
-        bool verifyBalance = _before >= _debt;
-        require(verifyBalance, "OLV: Missing tokens");
-
         if (_collateral > 0) {
             _asset.transferFrom(_user, _vault, _collateral);
-            uint256 _after = _asset.balanceOf(_vault);
-            verifyBalance = _after >= _before.add(_collateral);
-            require(verifyBalance, "OLV: Missing tokens");
         }
 
         _asset.transfer(address(_strategy), amount);

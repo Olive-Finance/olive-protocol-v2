@@ -3,9 +3,7 @@
 pragma solidity ^0.8.9;
 
 interface IAssetManager { 
-    function getPrice(address _asset, uint256 _value) external view returns (uint256);
-
-    function getBurnPrice(address _asset, uint256 _value) external view returns (uint256);
+    function exhangeValue(address _from, address _to, uint256 _amount) external view returns (uint256);
 
     function addLiquidityForAccount(address _user, address _asset, uint256 _value) external returns (uint256);
 

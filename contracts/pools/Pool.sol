@@ -4,8 +4,8 @@ pragma solidity ^0.8.9;
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
-import {ILendingPool} from '../interfaces/ILendingPool.sol';
-import {IRateCalculator} from '../interfaces/IRateCalculator.sol';
+import {ILendingPool} from './interfaces/ILendingPool.sol';
+import {IRateCalculator} from './interfaces/IRateCalculator.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {Allowed} from '../interfaces/Allowed.sol';
 
@@ -35,6 +35,8 @@ contract Pool is ILendingPool, Allowed {
     function _totalBorrowedDebt() internal view returns (uint256) {
         IERC20 dToken = reserve._dToken;
         uint256 supply = dToken.totalSupply();
+        console.log("_borrowed debt: ", supply);
+        console.log("_timestamp: ", block.timestamp);
         return supply.mul(reserve.getNormalizedDebt()).div(Reserve.PINT);
     }
 
@@ -69,8 +71,10 @@ contract Pool is ILendingPool, Allowed {
 
     // Internal repeated functions
     function reserveUpdates(
-        uint256 _amountAdded,
-        uint256 _amountRemoved
+        uint256 _supplied,
+        uint256 _withdrawn,
+        uint256 _borrowed,
+        uint256 _repayed
     ) internal returns (bool) {
         // Common function to be called befor execution of deposit, borrow, repay, withdraw
         reserve.updateState();
@@ -79,8 +83,10 @@ contract Pool is ILendingPool, Allowed {
         reserve.updateRates(
             totalBorrowedDebt,
             totalLiquidity,
-            _amountAdded,
-            _amountRemoved
+            _supplied,
+            _withdrawn,
+            _borrowed,
+            _repayed
         );
         return true;
     }
@@ -88,13 +94,13 @@ contract Pool is ILendingPool, Allowed {
     function borrow(
         address _toAccount,
         address _user,
-        uint256 _amount
+        uint256 _amount // USDC
     ) external override onlyAllowed returns (uint256) {
         require(_toAccount != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        bool updated = reserveUpdates(uint256(0), _amount);
+        bool updated = reserveUpdates(uint256(0), uint256(0), _amount, uint256(0));
         require(updated, "POL: State update failed");
 
         IERC20 dToken = reserve._dToken;
@@ -113,12 +119,12 @@ contract Pool is ILendingPool, Allowed {
 
     function fund(
         address _user,
-        uint256 _amount
+        uint256 _amount // USDC
     ) external override returns (bool) {
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        bool updated = reserveUpdates(_amount, uint256(0));
+        bool updated = reserveUpdates(_amount, uint256(0), uint256(0), uint256(0));
         require(updated, "POL: State update failed");
 
         IERC20 want = reserve._want;
@@ -130,6 +136,8 @@ contract Pool is ILendingPool, Allowed {
         IERC20 aToken = reserve._aToken;
         IMintable mintableAToken = IMintable(address(aToken));
 
+        console.log("Atoken Transferred: ", scaledAmount);
+
         mintableAToken.mint(_user, scaledAmount);
 
         return true;
@@ -137,12 +145,12 @@ contract Pool is ILendingPool, Allowed {
 
     function withdraw(
         address _user,
-        uint256 _amount
+        uint256 _amount // aToken - change to shares
     ) external override returns (bool) {
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        bool updated = reserveUpdates(uint256(0), _amount);
+        bool updated = reserveUpdates(uint256(0), _amount, uint256(0), uint256(0));
         require(updated, "POL: State update failed");
 
         uint256 supplyIndex = reserve._supplyIndex;
@@ -152,6 +160,8 @@ contract Pool is ILendingPool, Allowed {
         IMintable mintableAToken = IMintable(address(aToken));
 
         mintableAToken.burn(_user, _amount);
+
+        console.log("Want Transferred: ", wantAmount);
 
         IERC20 want = reserve._want;
         want.transfer(_user, wantAmount);
@@ -175,24 +185,50 @@ contract Pool is ILendingPool, Allowed {
     function repay(
         address _fromAccount,
         address _user,
-        uint256 _amount
+        uint256 _amount // USDC 
     ) external override returns (bool) {
         require(_amount > 0, "POL: Zero/Negative amount");
         require(_user != address(0), "POL: Null address");
 
-        bool updated = reserveUpdates(_amount, uint256(0));
+        bool updated = reserveUpdates(uint256(0), uint256(0), uint256(0), _amount);
         require(updated, "POL: State update failed");
 
         uint256 borrowIndex = reserve._borrowIndex;
         uint256 toBurnAmount = _amount.mul(Reserve.PINT).div(borrowIndex);
 
+        uint256 toTransfer = _amount.mul(borrowIndex).div(Reserve.PINT);
+
         IERC20 want = reserve._want;
         want.transferFrom(_fromAccount, address(this), _amount);
+
+        console.log("Atoken Transferred: ", _amount);
 
         IERC20 dToken = reserve._dToken;
         IMintable doToken = IMintable(address(dToken));
         doToken.burn(_user, toBurnAmount);
 
         return true;
+    }
+
+    function getDebtInWant(address _user) public view returns (uint256) {
+        console.log("timeStamp : ", block.timestamp);
+        IERC20 dToken = reserve._dToken;
+        uint256 balance = dToken.balanceOf(_user);
+        if (balance == 0) {
+            return balance;
+        }
+        uint256 ndi = reserve.getNormalizedDebt();
+        return ndi.mul(balance).div(Reserve.PINT);
+    }
+
+    function getIncomeInWant(address _user) public view returns (uint256) {
+        console.log("timeStamp : ", block.timestamp);
+        IERC20 aToken = reserve._aToken;
+        uint256 balance = aToken.balanceOf(_user);
+        if (balance == 0) {
+            return balance;
+        }
+        uint256 nii = reserve.getNormalizedIncome();
+        return nii.mul(balance).div(Reserve.PINT);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.9;
 
-import {IRateCalculator} from '../interfaces/IRateCalculator.sol';
+import {IRateCalculator} from './interfaces/IRateCalculator.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {Allowed} from '../interfaces/Allowed.sol';
 

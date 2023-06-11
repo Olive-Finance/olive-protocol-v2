@@ -2,8 +2,10 @@
 pragma solidity ^0.8.9;
 
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
-import {IRateCalculator} from '../../interfaces/IRateCalculator.sol';
+import {IRateCalculator} from './../interfaces/IRateCalculator.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
+
+import 'hardhat/console.sol';
 
 library Reserve {
     struct ReserveData {
@@ -72,16 +74,29 @@ library Reserve {
 
         // update liquidity index
         uint256 prevSupplyIndex = reserve._supplyIndex;
+        console.log("prevSupplyIndex: ", prevSupplyIndex);
         uint256 supplyRate = reserve._currentSupplyRate;
+        console.log("supplyRate: ", supplyRate);
         uint256 supplyIndex = rcl.calculateSimpleInterest(supplyRate, uint256(reserveLastUpdated), currentTimestamp);
         reserve._supplyIndex = supplyIndex.mul(prevSupplyIndex).div(PINT);
+
+        console.log("SupplyIndex: ", supplyIndex);
+        
         
         // update borrow index
         uint256 prevBorrowIndex = reserve._borrowIndex;
-        if(reserve._dToken.totalSupply() > 0) { // Don't have to compute borrow index as there is no borrow
+        console.log("prevBorrowIndex: ", prevBorrowIndex);
+        console.log(address(reserve._dToken));
+        console.log("Total debt tokens:", reserve._dToken.totalSupply());
+        IERC20 debtToken = reserve._dToken;
+        uint256 totalDebt = debtToken.totalSupply();
+        console.log("Total debt tokens:", totalDebt.div(1e8));
+        if( totalDebt > 0) { // Don't have to compute borrow index as there is no borrow
+            console.log("I am inside to compute the borrow");
             uint256 borrowRate = reserve._currentBorrowRate;
             uint256 borrowIndex = rcl.calculateCompoundInterest(borrowRate, reserveLastUpdated, currentTimestamp);
             reserve._borrowIndex = borrowIndex.mul(prevBorrowIndex).div(PINT);
+            console.log("BorrowIndex:", borrowIndex);
         }
 
         // update timestamp
@@ -121,22 +136,27 @@ library Reserve {
     function updateRates(ReserveData storage reserve, 
         uint256 totalBorrwedDebt,
         uint256 totalliquidity,
-        uint256 liquidityAdded,
-        uint256 liquidityRemoved
+        uint256 supplyAdded,
+        uint256 supplyRemoved,
+        uint256 borrowRequested,
+        uint256 borrowRepayed
     ) internal {
-        if (totalBorrwedDebt <= 0) { // saving the cost of computation
-            return;
-        }
-
-        uint256 utilization = totalBorrwedDebt.mul(PINT);
-        uint256 liquidity = totalliquidity.add(liquidityAdded).sub(liquidityRemoved);
-        liquidity = liquidity.add(totalBorrwedDebt);
+        console.log("Total debt: ", totalBorrwedDebt);
+        uint256 debt = totalBorrwedDebt.add(borrowRequested).sub(borrowRepayed);
+        uint256 liquidity = totalliquidity.add(supplyAdded).sub(supplyRemoved);
+        uint256 utilization = debt.mul(PINT);
+        liquidity = liquidity.add(totalBorrwedDebt); // At this stage the borrow did not happen - don't need to correct the denominator
         utilization = utilization.div(liquidity);
+
+        console.log("Utilization: ", utilization);
 
         IRateCalculator rcl = reserve._rcl;
 
         uint256 _borrowRate = rcl.calculateBorrowRate(utilization);
         uint256 _supplyRate = rcl.calculateSupplyRate(_borrowRate, utilization);
+
+        console.log(_borrowRate);
+        console.log(_supplyRate);
 
         reserve._currentBorrowRate = _borrowRate;
         reserve._currentSupplyRate = _supplyRate;

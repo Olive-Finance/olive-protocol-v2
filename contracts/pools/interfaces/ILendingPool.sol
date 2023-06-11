@@ -23,5 +23,7 @@ interface ILendingPool {
 
     function wantToken() external view returns (address);
 
+    function  getDebtInWant(address _user) external view returns (uint256);
+
     function maxAllowedAmount() external view returns (uint256);
 }

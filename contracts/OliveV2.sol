@@ -5,10 +5,10 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 
-import {ILendingPool} from './interfaces/ILendingPool.sol';
+import {ILendingPool} from './pools/interfaces/ILendingPool.sol';
 import {IMintable} from './interfaces/IMintable.sol';
-import {IStrategy} from './interfaces/IStrategy.sol';
-import {IAssetManager} from './interfaces/IAssetManager.sol';
+import {IStrategy} from './strategies/interfaces/IStrategy.sol';
+import {IAssetManager} from './strategies/interfaces/IAssetManager.sol';
 
 import {IOlive} from './interfaces/IOlive.sol';
 
@@ -125,7 +125,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
     }
 
     // List of view functions
-    function getCollateralInLP(address _user) internal view returns (uint256) {
+    function getCollateralInLP(address _user) public view returns (uint256) {
         require(_user != address(0), "OLV: Invalid address");
         IERC20 oToken = IERC20(_oToken);
         uint256 collateral = oToken.balanceOf(_user);
@@ -135,14 +135,11 @@ contract OliveV2 is IOlive, Pausable, Allowed {
         return collateral;
     }
 
-    function getDebtInLP(address _user) internal view returns (uint256) {
+    function getDebtInLP(address _user) public view returns (uint256) {
         require(_user != address(0), "OLV: Invalid address");
-        IERC20 dToken = IERC20(_pool.debtToken());
+        uint256 debt = _pool.getDebtInWant(_user);
         address want = _pool.wantToken();
-        uint256 debtInLP = _assetManager.getPrice(
-            want,
-            dToken.balanceOf(_user)
-        );
+        uint256 debtInLP = _assetManager.exhangeValue(address(want), address(_asset), debt);
         return debtInLP;
     }
 
@@ -275,10 +272,7 @@ contract OliveV2 is IOlive, Pausable, Allowed {
 
         // Convert them to total want to be borrowed
         IERC20 want = IERC20(_pool.wantToken());
-        uint256 _wantToBorrow = _assetManager.getBurnPrice(
-            address(want),
-            _assetDelta
-        );
+        uint256 _wantToBorrow = _assetManager.exhangeValue(address(_asset), address(want), _assetDelta);
 
         // Borrow and Zap
         uint256 _zapped = _borrowNZap(_borrower, _user, _wantToBorrow);

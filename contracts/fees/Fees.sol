@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.9;
 
-import {IFees} from "../interfaces/IFees.sol";
+import {IFees} from "./interfaces/IFees.sol";
 
 import {Allowed} from "../interfaces/Allowed.sol";
 

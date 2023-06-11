@@ -5,10 +5,10 @@ pragma solidity ^0.8.9;
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
-import {IStrategy} from '../interfaces/IStrategy.sol';
+import {IStrategy} from './interfaces/IStrategy.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 
-import {IGMXRouter}  from '../interfaces/IGMXRouter.sol';
+import {IGMXRouter}  from './GLP/interfaces/IGMXRouter.sol';
 
 contract Strategy is IStrategy {
     //List of addresses

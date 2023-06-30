@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.17;
 
 interface IRateCalculator {
     function calculateSupplyRate(uint256 _borrowRate, uint256 _u) external view returns (uint256);

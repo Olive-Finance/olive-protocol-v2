@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.17;
 
 import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
@@ -13,13 +14,11 @@ import {Reserve} from './library/Reserve.sol';
 
 import "hardhat/console.sol";
 
-contract Pool is ILendingPool, Allowed {
+contract LendingPool is ILendingPool, Allowed {
     using SafeMath for uint256;
     using Reserve for Reserve.ReserveData;
 
     Reserve.ReserveData public reserve;
-
-    uint256 constant ONE_HUNDERED = 1e2;
 
     constructor(
         address aToken,
@@ -32,26 +31,22 @@ contract Pool is ILendingPool, Allowed {
     }
 
     // View functions
-    function _totalBorrowedDebt() internal view returns (uint256) {
+    function _debt() internal view returns (uint256) {
         IERC20 dToken = reserve._dToken;
         uint256 supply = dToken.totalSupply();
-        console.log("_borrowed debt: ", supply);
-        console.log("_timestamp: ", block.timestamp);
         return supply.mul(reserve.getNormalizedDebt()).div(Reserve.PINT);
     }
 
-    function _totalLiquidity() internal view returns (uint256) {
+    function _available() internal view returns (uint256) {
         address pool = reserve._pool;
         IERC20 want = reserve._want;
         return want.balanceOf(pool);
     }
 
     function utilization() external view override returns (uint256) {
-        uint256 debt = _totalBorrowedDebt();
-        uint256 supply = _totalLiquidity();
-
-        uint256 util = debt.mul(Reserve.PINT);
-        util = util.div(debt.add(supply));
+        uint256 d = _debt();
+        uint256 util = d.mul(Reserve.PINT);
+        util = util.div(d.add(_available()));
         return util;
     }
 
@@ -65,67 +60,70 @@ contract Pool is ILendingPool, Allowed {
         return address(want);
     }
 
-    function maxAllowedAmount() external view override returns (uint256) {
-        return uint256(1e28);
+    function borrowRate() external view override returns (uint256) {
+        IRateCalculator rcl = reserve._rcl;
+        return rcl.calculateBorrowRate(this.utilization());
     }
 
-    // Internal repeated functions
-    function reserveUpdates(
-        uint256 _supplied,
-        uint256 _withdrawn,
-        uint256 _borrowed,
-        uint256 _repayed
+    function supplyRate() external view override returns (uint256) {
+        IRateCalculator rcl = reserve._rcl;
+        return rcl.calculateSupplyRate(borrowRate(), this.utilization());
+    }
+
+    // Internal repeated function
+    function updateReserve(
+        uint256 _supply,
+        uint256 _withdrawShares, // This is coming as shares
+        uint256 _borrow,
+        uint256 _repay
     ) internal returns (bool) {
-        // Common function to be called befor execution of deposit, borrow, repay, withdraw
+        // Common function to be called before execution of deposit, borrow, repay, withdraw
         reserve.updateState();
-        uint256 totalBorrowedDebt = _totalBorrowedDebt();
-        uint256 totalLiquidity = _totalLiquidity();
+
         reserve.updateRates(
-            totalBorrowedDebt,
-            totalLiquidity,
-            _supplied,
-            _withdrawn,
-            _borrowed,
-            _repayed
+            _debt(),
+            _available(),
+            _supply,
+            _withdraw,
+            _borrow,
+            _repay
         );
         return true;
     }
 
     function borrow(
-        address _toAccount,
+        address _vault,
         address _user,
-        uint256 _amount // USDC
+        uint256 _amount // Want token
     ) external override onlyAllowed returns (uint256) {
-        require(_toAccount != address(0), "POL: Null address");
+        require(_vault != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        bool updated = reserveUpdates(uint256(0), uint256(0), _amount, uint256(0));
-        require(updated, "POL: State update failed");
+        updateReserve(uint256(0), uint256(0), _amount, uint256(0));
 
         IERC20 dToken = reserve._dToken;
         IMintable doToken = IMintable(address(dToken));
 
         uint256 borrowIndex = reserve._borrowIndex;
-        uint256 scaledAmount = _amount.mul(Reserve.PINT).div(borrowIndex);
+        uint256 scaledBalance = _amount.mul(Reserve.PINT).div(borrowIndex);
 
-        doToken.mint(_user, scaledAmount);
+        doToken.mint(_user, scaledBalance);
 
         IERC20 want = reserve._want;
-        want.transfer(_toAccount, _amount);
+        want.transfer(_vault, _amount);
 
         return _amount;
     }
 
-    function fund(
-        address _user,
-        uint256 _amount // USDC
+    function supply(
+        uint256 _amount // Want token
     ) external override returns (bool) {
+        address _user = msg.sender;
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
-        bool updated = reserveUpdates(_amount, uint256(0), uint256(0), uint256(0));
-        require(updated, "POL: State update failed");
+        updateReserve(_amount, uint256(0), uint256(0), uint256(0));
 
         IERC20 want = reserve._want;
         want.transferFrom(_user, address(this), _amount);
@@ -134,34 +132,30 @@ contract Pool is ILendingPool, Allowed {
         uint256 scaledAmount = _amount.mul(Reserve.PINT).div(supplyIndex);
 
         IERC20 aToken = reserve._aToken;
-        IMintable mintableAToken = IMintable(address(aToken));
+        IMintable maToken = IMintable(address(aToken));
 
-        console.log("Atoken Transferred: ", scaledAmount);
-
-        mintableAToken.mint(_user, scaledAmount);
+        maToken.mint(_user, scaledAmount);
 
         return true;
     }
 
     function withdraw(
-        address _user,
-        uint256 _amount // aToken - change to shares
+        uint256 _shares
     ) external override returns (bool) {
+        address _user = msg.sender;
         require(_user != address(0), "POL: Null address");
-        require(_amount > 0, "POL: Zero/Negative amount");
+        require(_shares > 0, "POL: Zero/Negative amount");
 
-        bool updated = reserveUpdates(uint256(0), _amount, uint256(0), uint256(0));
-        require(updated, "POL: State update failed");
+        //todo fix the shares to supply balance
+        updateReserve(uint256(0), _shares, uint256(0), uint256(0));
 
         uint256 supplyIndex = reserve._supplyIndex;
-        uint256 wantAmount = _amount.mul(supplyIndex).div(Reserve.PINT);
+        uint256 wantAmount = _shares.mul(supplyIndex).div(Reserve.PINT);
 
         IERC20 aToken = reserve._aToken;
-        IMintable mintableAToken = IMintable(address(aToken));
+        IMintable maToken = IMintable(address(aToken));
 
-        mintableAToken.burn(_user, _amount);
-
-        console.log("Want Transferred: ", wantAmount);
+        maToken.burn(_user, _shares);
 
         IERC20 want = reserve._want;
         want.transfer(_user, wantAmount);
@@ -169,48 +163,30 @@ contract Pool is ILendingPool, Allowed {
         return true;
     }
 
-    function borrowRate() external view override returns (uint256) {
-        IRateCalculator rcl = reserve._rcl;
-        uint256 br = rcl.calculateBorrowRate(this.utilization());
-        return br.mul(ONE_HUNDERED).div(Reserve.PINT);
-    }
-
-    function supplyRate() external view override returns (uint256) {
-        IRateCalculator rcl = reserve._rcl;
-        uint256 u = this.utilization();
-        uint256 sr = rcl.calculateSupplyRate(rcl.calculateBorrowRate(u), u);
-        return sr.mul(ONE_HUNDERED).div(Reserve.PINT);
-    }
-
     function repay(
-        address _fromAccount,
+        address _vault,
         address _user,
-        uint256 _amount // USDC 
+        uint256 _amount // Want token
     ) external override returns (bool) {
         require(_amount > 0, "POL: Zero/Negative amount");
         require(_user != address(0), "POL: Null address");
 
-        bool updated = reserveUpdates(uint256(0), uint256(0), uint256(0), _amount);
-        require(updated, "POL: State update failed");
+        updateReserve(uint256(0), uint256(0), uint256(0), _amount);
 
         uint256 borrowIndex = reserve._borrowIndex;
-        uint256 toBurnAmount = _amount.mul(Reserve.PINT).div(borrowIndex);
-
-        uint256 toTransfer = _amount.mul(borrowIndex).div(Reserve.PINT);
+        uint256 burnableShares = _amount.mul(Reserve.PINT).div(borrowIndex);
 
         IERC20 want = reserve._want;
-        want.transferFrom(_fromAccount, address(this), _amount);
-
-        console.log("Atoken Transferred: ", _amount);
+        want.transferFrom(_vault, address(this), _amount);
 
         IERC20 dToken = reserve._dToken;
         IMintable doToken = IMintable(address(dToken));
-        doToken.burn(_user, toBurnAmount);
+        doToken.burn(_user, burnableShares);
 
         return true;
     }
 
-    function getDebtInWant(address _user) public view returns (uint256) {
+    function getDebt(address _user) public view returns (uint256) {
         console.log("timeStamp : ", block.timestamp);
         IERC20 dToken = reserve._dToken;
         uint256 balance = dToken.balanceOf(_user);
@@ -220,7 +196,7 @@ contract Pool is ILendingPool, Allowed {
         return reserve.getNormalizedDebt().mul(balance).div(Reserve.PINT);
     }
 
-    function getIncomeInWant(address _user) public view returns (uint256) {
+    function getBalance(address _user) public view returns (uint256) {
         console.log("timeStamp : ", block.timestamp);
         IERC20 aToken = reserve._aToken;
         uint256 balance = aToken.balanceOf(_user);

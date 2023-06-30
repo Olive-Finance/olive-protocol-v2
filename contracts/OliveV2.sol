@@ -1,5 +1,6 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: GPL-3.0
+
+pragma solidity ^0.8.17;
 
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
@@ -19,9 +20,7 @@ import {Allowed} from './interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
-contract OliveV2 is IOlive, Pausable, Allowed {
-    using SafeMath for uint256;
-    using SafeMath for uint16;
+contract OliveV2 is IOlive, Allowed {
 
     //Address locations for each of the tokens
     IERC20 public _asset;

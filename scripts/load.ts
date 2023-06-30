@@ -49,10 +49,6 @@ async function main() {
     // await coToken.grantRole(olive.address);
 
     let user = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
-    
-    await rcl.calculateBorrowRate(0.995e12);
-    await rcl.calculateSimpleInterest(0.02e12, 0, 365*86400)/1e12;
-    await rcl.calculateCompoundInterest(0.02e12, 0, 365*86400)/1e12;
 
 
     // function to execute 
@@ -68,10 +64,7 @@ async function main() {
     
 
     // Set the mock price feed
-    await glpManager.setPrice(usdc.address, 0.5e4);
-
-    1685939886
-    1685939924
+    await glpManager.setPrice(usdc.address, 1e4);
 
 
     // Allow Olive contract to borrow from the pool
@@ -86,13 +79,10 @@ async function main() {
     await oToken.balanceOf(olive.address);
     await oToken.balanceOf(strategy.address);
 
-    // await coToken.balanceOf(user);
-    // await coToken.balanceOf(olive.address);
-    // await coToken.balanceOf(strategy.address);
-
     // Call the deposit function
-    await olive.deposit(10e8, 5e2);
-    await olive.deposit(40e8, 5e2);
+    await olive.deposit(10e8, 5e2, 0, 0);
+    await glp.mint(user, 1e8);
+    await olive.deposit(1e8, 5e2,0,0);
     await olive.deleverage(2);
 
     await soToken.balanceOf(user);

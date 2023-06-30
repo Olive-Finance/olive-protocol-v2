@@ -22,13 +22,14 @@ package-lock.json
 .vscode
 .wallet
 
-
 # avoid committing compressed files
 .zip 
 
 # coverage files
 coverage
 
+# ignore file system things
+.DS_Store
 
 
 

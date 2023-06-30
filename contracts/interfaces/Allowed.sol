@@ -1,10 +1,11 @@
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.9;
+// SPDX-License-Identifier: GPL-3.0
 
+pragma solidity ^0.8.17;
 
-contract Allowed{
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
 
-    // Token managers information
+contract Allowed is Pausable {
+    
     address private _ownerAddr;
     mapping(address => bool) private _allowed;
 

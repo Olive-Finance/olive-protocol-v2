@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0
 
-pragma solidity ^0.8.9;
+pragma solidity ^0.8.17;
 
 interface IFees {
     function computePerfFees(address _token, uint256 _amount) external view returns (uint256);

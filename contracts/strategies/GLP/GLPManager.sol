@@ -23,7 +23,7 @@ contract GLPManager is IAssetManager {
         _glpToken = glpToken;
     }
 
-    function addLiquidityForAccount(
+    function buy(
         address _user,
         address _asset,
         uint256 _value
@@ -50,7 +50,7 @@ contract GLPManager is IAssetManager {
         return glpToMint;
     }
 
-    function removeLiquidityForAccount(
+    function sell(
         address _user,
         address _asset,
         uint256 _value

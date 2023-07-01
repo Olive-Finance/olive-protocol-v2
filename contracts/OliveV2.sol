@@ -34,7 +34,7 @@ contract OliveV2 is IOlive, Allowed {
     address public _treasury;
 
     // Pool for borrowing
-    ILendingPool public _lendingPool;
+    ILendingPool public lendingPool;
   
     // Vault parameters
     uint256 public MAX_LEVERAGE;
@@ -64,7 +64,7 @@ contract OliveV2 is IOlive, Allowed {
         _oToken = oToken;
         _strategy = IStrategy(strategy);
         _assetManager = IAssetManager(assetManager);
-        _lendingPool = ILendingPool(pool);
+        lendingPool = ILendingPool(pool);
 
         // Setting the default values
         MIN_LEVERAGE = minLeverage;
@@ -146,8 +146,8 @@ contract OliveV2 is IOlive, Allowed {
 
     function getDebtValueInAsset(address _user) public view returns (uint256) {
         require(_user != address(0), "OLV: Invalid address");
-        uint256 debt = _lendingPool.getDebtInWant(_user); // want token usdc
-        address want = _lendingPool.wantToken();
+        uint256 debt = lendingPool.getDebtInWant(_user); // want token usdc
+        address want = lendingPool.wantToken();
         return _assetManager.exchangeValue(address(want), address(_asset), debt);
     }
 
@@ -210,146 +210,117 @@ contract OliveV2 is IOlive, Allowed {
         return posValue - c1;
     }
 
-    // Vault functions
-    function deposit(
-        uint256 _collateral,
-        uint256 _leverage,
-        uint256 _expectedShares,
-        uint256 _slippage
-    ) external override blockCheck hfCheck returns (bool) {
-        // validations
-        require(
-            _leverage >= MIN_LEVERAGE && _leverage <= MAX_LEVERAGE,
-            "OLV: Invalid leverage value"
-        );
-        address _user = msg.sender;
-        require(_user != address(0), "OLV: Invalid user");
-
-        address _vault = address(this);
-
-        // todo optimize the repeated code
-        uint256 _mintedShares;
-        if (_leverage == MIN_LEVERAGE) {
-            _mintedShares = _deposit(_vault, _user, _collateral, uint256(0)) ;
-            require(!isSlipped(_expectedShares, _mintedShares, _slippage), "OLV: Position is splipped");
-            return true;
-        }
-
-        uint256 _debt = ((_leverage - Constants.PINT) * _collateral) / Constants.PINT;
-        return _executeLeverage(_vault, _user, _collateral, _debt, _expectedShares, _slippage);
+    function previewDeposit(address _user, uint256 _leverage, uint256 _collateral) public view returns (uint256) {
+        uint256 totalCollateral =  getPosValueInAsset(_user) - getDebtValueInAsset(_user) + _collateral;
+        uint256 debt = ((_leverage - this.getLeverage(_user)) * totalCollateral) / Constants.PINT;
+        return ((debt + _collateral) * Constants.PINT) / this.getPricePerShare();
     }
 
-    function leverage(uint256 _leverage, uint256 _expectedShares, uint256 _slippage) external override returns (bool) {
-        address _vault = address(this);
-        require(
-            (_leverage > MIN_LEVERAGE && _leverage <= MAX_LEVERAGE),
-            "OLV: No leverage"
-        );
-        address _user = msg.sender;
-        uint256 _userLeverage = this.getLeverage(_user);
-        require(
-            _leverage > _userLeverage,
-            "OLV: Position is already leveraged"
-        );
-
-        uint256 posValue = getPosValueInAsset(_user);
-        uint256 debt = getDebtValueInAsset(_user);
-        uint256 _collateral = posValue - debt;
-
-        // _debt corresponds to, new debt in asset value
-        uint256 _debt = ((_leverage - _userLeverage) * _collateral)/Constants.PINT;
-        return _executeLeverage(_vault, _user, uint256(0), _debt, _expectedShares, _slippage);
-    }
-
-    function _executeLeverage(
-        address _vault,
-        address _user,
-        uint256 _collateral,
-        uint256 _debt,
-        uint256 _expectedShares,
-        uint256 _slippage
-    ) internal returns (bool) {
-        require(_vault != address(0), "OLV: Invalid borrowe address");
-        require(_user != address(0), "OLV: Invalid user address");
-        require(_collateral > 0, "OLV: Invalid asset amount");
-
-        // Convert them to total want to be borrowed
-        IERC20 want = IERC20(_lendingPool.wantToken());
-        uint256 _debtInWant = _assetManager.exchangeValue(address(_asset), address(want), _debt);
-
-        // Borrow and Buy
-        uint256 _bought = _borrowNBuy(_vault, _user, _debtInWant);
-
-        // deposit and return the number of OTokens
-        uint256 _mintedShares = _deposit(_vault, _user, _collateral, _bought);
-        require(!isSlipped(_expectedShares, _mintedShares, _slippage), "OLV: Position is slipped");
-        return true;
-    }
-
-    function _borrowNBuy(
-        address _vault,
-        address _user,
-        uint256 _debtInWant
-    ) internal returns (uint256) {
-        //validations
-        require(_vault != address(0), "OLV: Invalid borrowe address");
-        require(_user != address(0), "OLV: Invalid user address");
-        require(_debtInWant > 0, "OLV: Invalid borrow amount");
-
-        // Execute borrow for total imputed want tokens
-        IERC20 want = IERC20(_lendingPool.wantToken());
-        uint256 _borrowed = _lendingPool.borrow(_vault, _user, _debtInWant);
-        
-
-        // Buy asset from borrowed amount
-        bool isApproved = want.approve(address(_assetManager), _borrowed);
-        require(isApproved, "OLV: GLP approve failed");
-        uint256 _bought = _assetManager.addLiquidityForAccount(  // todo - have the simple names buy / sell for assets interface
-            _vault,
-            address(want),
-            _borrowed
-        );
-
-        return _bought;
-    }
-
-    function isSlipped(
+    function slipped(
         uint256 computed,
         uint256 actual,
         uint256 tolerance
-    ) internal view returns (bool) {
+    ) internal pure returns (bool) {
         return computed > (actual * (Constants.PINT - tolerance)) / Constants.PINT;
     }
 
-    function _deposit(
-        address _vault,
-        address _user,
-        uint _collateral,
-        uint _debt
-    ) internal hfCheck returns (uint256) {
-        require(_vault != address(0), "OLV: Invalid borrower addresss");
-        require(_user != address(0), "OLV: Invalid user address");
+    // Vault functions
+    function deposit(
+        uint256 _amount,
+        uint256 _leverage,
+        uint256 _expShares,
+        uint256 _slippage
+    ) external override blockCheck hfCheck returns (bool) {
+        require(_leverage >= MIN_LEVERAGE && _leverage <= MAX_LEVERAGE, "OLV: Invalid leverage value");
+        address _user = msg.sender;
+        uint256 totalCollateral =  getPosValueInAsset(_user) - getDebtValueInAsset(_user) + _amount;
+        uint256 debt = ((_leverage - this.getLeverage(_user)) * totalCollateral) / Constants.PINT;
+        uint256 bought = 0;
 
-        uint256 amount = _collateral + _debt;
-
-        if (_collateral > 0) {
-            _asset.transferFrom(_user, _vault, _collateral);
+        _asset.transferFrom(_user, address(this), _amount);
+        if (debt > 0) {
+            bought = _borrowNBuy(_user, debt);
         }
+        _deploy(bought + _amount);
+        uint256 minted = _mint(_user, bought + _amount);
 
-        _asset.transfer(address(_strategy), amount);
-        _strategy.deposit(_vault, amount); // mint sToken
-        
-        return _mint(_user, amount);
+        if (slipped(_expShares, minted, _slippage)) revert('OLV: Position slipped');
+        return true;
     }
 
-    function _mint(address _user, uint256 amount) internal returns (uint256) {
+    function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage) external override hfCheck returns (bool)  {
+        require(_leverage > MIN_LEVERAGE && _leverage <= MAX_LEVERAGE, "OLV: Invalid leverage");
+        address _user = msg.sender;
+        uint256 collateral =  getPosValueInAsset(_user) - getDebtValueInAsset(_user);
+        uint256 debt = ((_leverage - this.getLeverage(_user)) * collateral) / Constants.PINT;
+        
+        uint256 bought = _borrowNBuy(_user, debt);
+
+        _deploy(bought);
+        uint256 minted = _mint(_user, bought);
+
+        if (slipped(_expShares, minted, _slippage)) revert('OLV: Position slipped');
+        return true;
+    }
+
+    function _borrowNBuy(address _user, uint256 _debt) internal returns (uint256) {
+        require(_debt > 0, "OLV: Invalid debt");
+        require(_user != address(0) && _user != address(this), "OLV: Invalid Address");
+        IERC20 want = IERC20(lendingPool.wantToken());
+        uint256 debtInWant = _assetManager.exchangeValue(address(_asset), address(want), _debt);
+        uint256 borrowed = _borrow(_user, debtInWant);
+        bool isApproved = want.approve(address(_assetManager), borrowed);
+        if (!isApproved) revert("OLV: Approval failed");
+        return _buy(lendingPool.wantToken(), borrowed);
+    }
+
+    function _borrow(address _user, uint256 _amount) internal returns (uint256) {
+        require(_amount > 0, "OLV: Invalid borrow amount");
+        require(_user != address(0), "OLV: Invalid user address");
+        return lendingPool.borrow(address(this), _user, _amount);
+    }
+
+    function _buy(address _token, uint256 _amount) internal returns (uint256) {
+        require(_token != address(0) && _token == lendingPool.wantToken(), "OLV: Invalid token");
+        require(_amount > 0, "OLV: Invalid amount");
+        return _assetManager.buy(address(this), _token, _amount);
+    }
+
+    function _mint(address _user, uint256 _amount) internal returns (uint256) {
         IMintable oToken = IMintable(_oToken);
-        uint256 _sharesToMint = (amount * Constants.PINT) / this.getPricePerShare();
-        oToken.mint(_user, _sharesToMint);
-
+        uint256 _shares = (_amount * Constants.PINT) / this.getPricePerShare();
+        oToken.mint(_user, _shares);
         userTxnBlockStore[_user] = block.number;
+        return _shares;
+    }
 
-        return _sharesToMint;
+    function _burn(address _user, uint256 _shares) internal returns (uint256) {
+        IMintable oBurnToken = IMintable(_oToken);
+        oBurnToken.burn(_user, _shares);
+        userTxnBlockStore[_user] = block.number;
+        return _shares;
+    }
+
+    function _sell(address _token, uint256 _amount) internal returns (uint256) {
+       require(_token != address(0) && _token == lendingPool.wantToken(), "OLV: Invalid token");
+       require(_amount > 0, "OLV: Invalid amount");
+       return _assetManager.sell(address(this), _token, _amount);
+    }
+
+    function _repay(address _user, uint256 _amount) internal returns (uint256) {
+        lendingPool.repay(address(this), _user, _amount);
+        return _amount;
+    }
+
+    function _deploy(uint256 _amount) internal returns (uint256) {
+        require(_amount > 0, "OLV: Invalid amount for deploy");
+        _asset.transfer(address(_strategy), _amount);
+        _strategy.deposit(address(this), _amount); 
+    }
+
+    function _redeem(uint256 _shares) internal returns (uint256) {
+        require(_shares > 0, "OLV: Invalid shares");
+        return _strategy.withdraw(address(this), _shares); 
     }
 
     function deleverage(
@@ -358,17 +329,15 @@ contract OliveV2 is IOlive, Allowed {
         uint256 _slippage
     ) external override blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
-        return _deleverageForUser(_user, _leverage, _repayAmount, _slippage);
+        uint256 paid = _deleverageForUser(_user, _leverage);
+        if (slipped(_repayAmount, paid, _slippage)) revert ("OLV: Postion slipped");
     }
 
     function _deleverageForUser(
         address _user,
-        uint256 _leverage,
-        uint256 _repayAmount,
-        uint256 _slippage
-    ) internal hfCheck returns (bool) {
+        uint256 _leverage
+    ) internal hfCheck returns (uint256) {
         address _burner = address(this);
-        require(_user != address(0), "OLV: Invalid user address");
         require(
             _leverage >= MIN_LEVERAGE && _leverage <= MAX_LEVERAGE,
             "OLV: Invalid deleverage position"
@@ -377,111 +346,36 @@ contract OliveV2 is IOlive, Allowed {
         uint256 _userLeverage = this.getLeverage(_user);
         require(_leverage < _userLeverage, "OLV: Invalid leverage");
 
-        uint256 collateral = getPosValueInAsset(_user); // Collateral in LP
-        uint256 debt = getDebtValueInAsset(_user); // Balance in LP
+        uint256 collateral =  getPosValueInAsset(_user) - getDebtValueInAsset(_user);
+        uint256 _shares = ((_userLeverage - _leverage) * collateral) / Constants.PINT;
 
-        require(collateral >= debt, "OLV: Not enough collateral");
-        uint256 _sharesToBurn = (_userLeverage - _leverage) * (collateral - debt);
-        _sharesToBurn /= Constants.PINT; 
+        _burn(_user, _shares);
 
-        require(_sharesToBurn < collateral, "OLV: Invalid burn");
+        //burn the shares - OToken = SToken
+        uint256 value = _redeem(_shares);
+        uint256 sold = _sell(lendingPool.wantToken(), value);
 
-        _burn(_user, _sharesToBurn);
-    
-        (uint256 _Retrieved, uint256 _Repaid) = _sellNRepay(
-            _burner,
-            _user,
-            _sharesToBurn,
-            debt
-        );
-
-        // Give back the dust / remaining balance to user
-        if (_Repaid < _Retrieved) {
-            _asset.transfer(_user, _Retrieved - _Repaid);
-        }
-
-        userTxnBlockStore[_user] = block.number;
-        return true;
-    }
-
-    function _burn(address _user, uint256 _sharesToBurn) internal returns (uint256) {
-        // Burn the released oTokens
-        IMintable oBurnToken = IMintable(_oToken);
-        oBurnToken.burn(_user, _sharesToBurn);
-        return _sharesToBurn;
-    }
-
-    function _sellNRepay(
-        address _burner,
-        address _user,
-        uint256 _sharesToBurn,
-        uint256 debt
-    ) internal returns (uint256, uint256) {
-        //Validations
-        require(_burner != address(0), "OLV: Invalid burner");
-        require(_user != address(0), "OLV: Invalid user");
-        require(_sharesToBurn > 0, "OLV: Invalid asset vaule");
-
-        // Get assets from strategy
-        uint256 _prevAssetBal = _asset.balanceOf(_burner);
-        uint256 _assetRetrieved = _strategy.withdraw(_burner, _sharesToBurn); // Tokens are with Olive
-        uint256 _postAssetBal = _asset.balanceOf(_burner);
-        require(
-            _postAssetBal - _prevAssetBal >= _assetRetrieved,
-            "OLV: Withdraw from strategy failed"
-        );
-
-        uint256 toRepay = _assetRetrieved > debt ? debt : _assetRetrieved;
-        uint256 repaid = _repayToPool(_burner, _user, toRepay);
-        return (_assetRetrieved, repaid);
-    }
-
-    function _repayToPool(
-        address _burner,
-        address _user,
-        uint256 toRepay
-    ) internal hfCheck returns (uint256) {
-        require(_burner != address(0), "OLV: Invalid burner");
-        require(_user != address(0), "OLV: Invalid user");
-
-        // Convert the assets to want - zap
-        IERC20 want = IERC20(_lendingPool.wantToken());
-        uint256 _prevWantBal = want.balanceOf(_burner);
-        uint256 _wantZapped = _assetManager.removeLiquidityForAccount(
-            _burner,
-            address(want),
-            toRepay
-        );
-        uint256 _postWantBal = want.balanceOf(_burner);
-        require(
-            _postWantBal - _prevWantBal >= _wantZapped,
-            "OLV: Reverse zapping failed"
-        );
-
-        bool isApproved = want.approve(address(_lendingPool), _wantZapped);
-        require(isApproved, "OLV: Approved failed to transfer to pool");
-        _lendingPool.repay(_burner, _user, _wantZapped);
-
-        return toRepay;
+        return _repay(_user, sold);
     }
 
     function withdraw(
         uint256 _shares,
         uint256 _expTokens,
-        uint256 _slip
+        uint256 _slippage
     ) external override blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
-        return _withdrawForUser(_user, _shares);
+        uint256 redeemed = _withdrawForUser(_user, _shares);
+        if (slipped(_expTokens, redeemed, _slippage)) revert ("OLV: Postion slipped");
+        return true;
     }
 
     function _withdrawForUser(
         address _user,
         uint256 _shares
-    ) internal hfCheck returns (bool) {
+    ) internal hfCheck returns (uint256) {
         require(_user != address(0), "OLV: Invalid address");
         require(_shares > 0, "OLV: Nothing to widthdraw");
 
-        address _contract = address(this);
         IERC20 oToken = IERC20(_oToken);
         uint256 userShare = oToken.balanceOf(_user);
         require(_shares <= userShare, "OLV: Shares overflow");
@@ -490,18 +384,15 @@ contract OliveV2 is IOlive, Allowed {
             "OLV: Over leveraged"
         );
 
-        IMintable oBurnableToken = IMintable(_oToken);
-        oBurnableToken.burn(_user, _shares);
+        _burn(_user, _shares);
+        uint256 value = _redeem(_shares);
 
-        uint256 glpWithdrawn = _strategy.withdraw(_contract, _shares); // Tokens are with Olive
-
-        _asset.transfer(_user, glpWithdrawn);
-        userTxnBlockStore[_user] = block.number;
-        return true;
+        _asset.transfer(_user, value);
+        return value;
     }
 
     function closePosition(address _user) external override returns (bool) {
-        _deleverageForUser(_user, MIN_LEVERAGE, uint256(0), uint256(0));
+        _deleverageForUser(_user, MIN_LEVERAGE);
         uint256 remainingShares = this.getBurnableShares(_user);
         _withdrawForUser(_user, remainingShares);
         return true;

@@ -13,7 +13,7 @@ contract Allowed is Pausable {
         _ownerAddr = owner;
         _allowed[owner] = true;
     }
-
+    
     /**
      * Modifier functions
      */

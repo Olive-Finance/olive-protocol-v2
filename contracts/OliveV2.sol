@@ -2,10 +2,8 @@
 
 pragma solidity ^0.8.17;
 
-import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Pausable} from '@openzeppelin/contracts/security/Pausable.sol';
-import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
-import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 
 import {ILendingPool} from './pools/interfaces/ILendingPool.sol';
 import {IMintable} from './interfaces/IMintable.sol';
@@ -14,7 +12,7 @@ import {IAssetManager} from './strategies/interfaces/IAssetManager.sol';
 
 import {IOlive} from './interfaces/IOlive.sol';
 
-import {Constants} from './utils/Contants.sol';
+import {Constants} from './lib/Constants.sol';
 
 import {Allowed} from './interfaces/Allowed.sol';
 
@@ -51,8 +49,6 @@ contract OliveV2 is IOlive, Allowed {
 
     // Allowed address for same block transactions
     mapping(address => bool) public allowedTxtor;
-
-    // OTokens - Asset will share the same decimals
 
     constructor(
         address asset,
@@ -119,7 +115,7 @@ contract OliveV2 is IOlive, Allowed {
     // List of modifiers for protection
     // Pre - modifiers
     modifier blockCheck() {
-        address caller = _msgSender();
+        address caller = msg.sender;
         if (!allowedTxtor[caller]) {
             require(
                 userTxnBlockStore[caller] != block.number,
@@ -131,7 +127,7 @@ contract OliveV2 is IOlive, Allowed {
 
     // Post - modifiers
     modifier hfCheck() {
-        address caller = _msgSender();
+        address caller = msg.sender;
         _;
         require(
             this.hf(caller) > HF_THRESHOLD,
@@ -145,7 +141,7 @@ contract OliveV2 is IOlive, Allowed {
         IERC20 oToken = IERC20(_oToken);
         uint256 collateral = oToken.balanceOf(_user);
         uint256 price = this.getPricePerShare();
-        return collateral.mul(price).div(Constants.PINT); // Price per share is stored in 1e18
+        return (collateral * price) / Constants.PINT;
     }
 
     function getDebtValueInAsset(address _user) public view returns (uint256) {
@@ -156,11 +152,11 @@ contract OliveV2 is IOlive, Allowed {
     }
 
     function getPricePerShare() external view override returns (uint256) {
-       return balanceOf().mul(Constants.PINT).div(totalSupply());
+       return (balanceOf() * Constants.PINT) / totalSupply() ;
     }
 
     function balanceOf() public view returns (uint256) {
-        return _asset.balanceOf(address(_strategy)).add(_asset.balanceOf(address(this)));
+        return _asset.balanceOf(address(_strategy)) + _asset.balanceOf(address(this));
     }
 
     function totalSupply() public view returns (uint256) {
@@ -181,18 +177,16 @@ contract OliveV2 is IOlive, Allowed {
             return Constants.MAX_INT;
         }
 
-        return posValue.mul(Constants.PINT).div(collateral);
+        return (posValue * Constants.PINT) / collateral;
     }
 
     function hf(address _user) external view returns (uint256) {
         uint256 debt = getDebtValueInAsset(_user);
         uint256 posValue = getPosValueInAsset(_user);
-
         if (debt == 0) {
             return Constants.MAX_INT;
         }
-
-        return posValue.mul(LIQUIDATION_THRESHOLD).div(debt);
+        return (posValue * LIQUIDATION_THRESHOLD) / debt;
     }
 
     function getBurnableShares(
@@ -210,10 +204,10 @@ contract OliveV2 is IOlive, Allowed {
         if (userHF <= HF_THRESHOLD) {
             return 0;
         }
-        uint256 c1 = debt.mul(Constants.PINT).div(LIQUIDATION_THRESHOLD);
-        uint256 c2 = debt.mul(MAX_LEVERAGE).div(MAX_LEVERAGE.sub(Constants.PINT));
+        uint256 c1 = (debt * Constants.PINT) / LIQUIDATION_THRESHOLD;
+        uint256 c2 = (debt * MAX_LEVERAGE) / (MAX_LEVERAGE - Constants.PINT);
         c1 = c1 > c2 ? c1 : c2;
-        return posValue.sub(c1);
+        return posValue - c1;
     }
 
     // Vault functions
@@ -228,7 +222,7 @@ contract OliveV2 is IOlive, Allowed {
             _leverage >= MIN_LEVERAGE && _leverage <= MAX_LEVERAGE,
             "OLV: Invalid leverage value"
         );
-        address _user = _msgSender();
+        address _user = msg.sender;
         require(_user != address(0), "OLV: Invalid user");
 
         address _vault = address(this);
@@ -241,7 +235,7 @@ contract OliveV2 is IOlive, Allowed {
             return true;
         }
 
-        uint256 _debt = _leverage.sub(Constants.PINT).mul(_collateral).div(Constants.PINT);
+        uint256 _debt = ((_leverage - Constants.PINT) * _collateral) / Constants.PINT;
         return _executeLeverage(_vault, _user, _collateral, _debt, _expectedShares, _slippage);
     }
 
@@ -251,7 +245,7 @@ contract OliveV2 is IOlive, Allowed {
             (_leverage > MIN_LEVERAGE && _leverage <= MAX_LEVERAGE),
             "OLV: No leverage"
         );
-        address _user = _msgSender();
+        address _user = msg.sender;
         uint256 _userLeverage = this.getLeverage(_user);
         require(
             _leverage > _userLeverage,
@@ -263,9 +257,7 @@ contract OliveV2 is IOlive, Allowed {
         uint256 _collateral = posValue - debt;
 
         // _debt corresponds to, new debt in asset value
-        uint256 _debt = _leverage.sub(_userLeverage).mul(_collateral);
-        _debt = _debt.div(Constants.PINT);
-
+        uint256 _debt = ((_leverage - _userLeverage) * _collateral)/Constants.PINT;
         return _executeLeverage(_vault, _user, uint256(0), _debt, _expectedShares, _slippage);
     }
 
@@ -326,7 +318,7 @@ contract OliveV2 is IOlive, Allowed {
         uint256 actual,
         uint256 tolerance
     ) internal view returns (bool) {
-        return computed > actual.mul(Constants.PINT.sub(tolerance)).div(Constants.PINT);
+        return computed > (actual * (Constants.PINT - tolerance)) / Constants.PINT;
     }
 
     function _deposit(
@@ -338,7 +330,7 @@ contract OliveV2 is IOlive, Allowed {
         require(_vault != address(0), "OLV: Invalid borrower addresss");
         require(_user != address(0), "OLV: Invalid user address");
 
-        uint256 amount = _collateral.add(_debt);
+        uint256 amount = _collateral + _debt;
 
         if (_collateral > 0) {
             _asset.transferFrom(_user, _vault, _collateral);
@@ -352,7 +344,7 @@ contract OliveV2 is IOlive, Allowed {
 
     function _mint(address _user, uint256 amount) internal returns (uint256) {
         IMintable oToken = IMintable(_oToken);
-        uint256 _sharesToMint = amount.mul(Constants.PINT).div(this.getPricePerShare());
+        uint256 _sharesToMint = (amount * Constants.PINT) / this.getPricePerShare();
         oToken.mint(_user, _sharesToMint);
 
         userTxnBlockStore[_user] = block.number;
@@ -365,7 +357,7 @@ contract OliveV2 is IOlive, Allowed {
         uint256 _repayAmount,
         uint256 _slippage
     ) external override blockCheck hfCheck returns (bool) {
-        address _user = _msgSender();
+        address _user = msg.sender;
         return _deleverageForUser(_user, _leverage, _repayAmount, _slippage);
     }
 
@@ -389,9 +381,8 @@ contract OliveV2 is IOlive, Allowed {
         uint256 debt = getDebtValueInAsset(_user); // Balance in LP
 
         require(collateral >= debt, "OLV: Not enough collateral");
-        uint256 _sharesToBurn = _userLeverage.sub(_leverage);
-        _sharesToBurn = _sharesToBurn.mul(collateral.sub(debt));
-        _sharesToBurn = _sharesToBurn.div(Constants.PINT); 
+        uint256 _sharesToBurn = (_userLeverage - _leverage) * (collateral - debt);
+        _sharesToBurn /= Constants.PINT; 
 
         require(_sharesToBurn < collateral, "OLV: Invalid burn");
 
@@ -406,7 +397,7 @@ contract OliveV2 is IOlive, Allowed {
 
         // Give back the dust / remaining balance to user
         if (_Repaid < _Retrieved) {
-            _asset.transfer(_user, _Retrieved.sub(_Repaid));
+            _asset.transfer(_user, _Retrieved - _Repaid);
         }
 
         userTxnBlockStore[_user] = block.number;
@@ -436,7 +427,7 @@ contract OliveV2 is IOlive, Allowed {
         uint256 _assetRetrieved = _strategy.withdraw(_burner, _sharesToBurn); // Tokens are with Olive
         uint256 _postAssetBal = _asset.balanceOf(_burner);
         require(
-            _postAssetBal.sub(_prevAssetBal) >= _assetRetrieved,
+            _postAssetBal - _prevAssetBal >= _assetRetrieved,
             "OLV: Withdraw from strategy failed"
         );
 
@@ -463,7 +454,7 @@ contract OliveV2 is IOlive, Allowed {
         );
         uint256 _postWantBal = want.balanceOf(_burner);
         require(
-            _postWantBal.sub(_prevWantBal) >= _wantZapped,
+            _postWantBal - _prevWantBal >= _wantZapped,
             "OLV: Reverse zapping failed"
         );
 
@@ -479,7 +470,7 @@ contract OliveV2 is IOlive, Allowed {
         uint256 _expTokens,
         uint256 _slip
     ) external override blockCheck hfCheck returns (bool) {
-        address _user = _msgSender();
+        address _user = msg.sender;
         return _withdrawForUser(_user, _shares);
     }
 

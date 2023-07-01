@@ -3,13 +3,12 @@
 pragma solidity ^0.8.17;
 
 import {IRateCalculator} from './interfaces/IRateCalculator.sol';
-import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
+import {Constants} from '../lib/Constants.sol';
 import {Allowed} from '../interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
 contract RateCalculator is IRateCalculator, Allowed {
-    using SafeMath for uint256;
     
     // Slopes for each of the interests
     uint256 public _r0;
@@ -21,9 +20,6 @@ contract RateCalculator is IRateCalculator, Allowed {
 
     // constant do define the year in seconds
     uint256 constant YEAR_IN_SECONDS = 365 days;
-
-    // precision defined in
-    uint256 constant PINT = 1e12;
 
     constructor(uint256 r0, uint256 r1, uint256 r2, uint256 uo) Allowed(msg.sender) {
         _r0 = r0;
@@ -46,61 +42,46 @@ contract RateCalculator is IRateCalculator, Allowed {
     }
 
     // Borrow rate * utilization
-    function calculateSupplyRate(uint256 _borrowRate, uint256 _u) external view returns (uint256) {
-        console.log("I am called by :", msg.sender);
-        return _borrowRate.mul(_u).div(PINT);
+    function supplyRate(uint256 _u) external view returns (uint256) {
+        return (this.borrowRate(_u) * _u) / Constants.PINT;
     }
 
     // Borrow based on the slope
-    function calculateBorrowRate(uint256 _u) external view returns (uint256) {
+    function borrowRate(uint256 _u) external view returns (uint256) {
         // Interest is a split function
         // Rv = R0 + U/UO * R1
         // Rv = R0 + R1 + (U-UO)/(1-UO) * R2
-        uint256 first = _u.mul(_r1).div(_uo);
-
+        uint256 first = (_u * _r1) / _uo;
         if (_u <= _uo) {
-            return first.add(_r1);
+            return first + _r0;
         }
-
-        uint256 second = _u.sub(_uo);
-        console.log(second);
-        second = second.mul(_r2);
-        second = second.div(PINT.sub(_uo));
-
-        return  second.add(_r1).add(_r2);
+        uint256 second = ((_u - _uo) * _r2) / (Constants.PINT - _uo);
+        return  (_r0 + _r1 + second);
     }
 
-    function calculateSimpleInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external pure returns (uint256) {
+    function simpleInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external pure returns (uint256) {
         require(_timeTo >= _timeFrom, "RCL: Invalid input data");
-
-        uint256 timeDiff = _timeTo.sub(_timeFrom);
-        timeDiff = timeDiff.mul(PINT);
-        timeDiff = timeDiff.div(YEAR_IN_SECONDS);
-
-        uint256 first = timeDiff.mul(_rate);
-        first = first.div(PINT);
-        first = first.add(PINT);
-
-        return first;
+        uint256 result = ((_timeTo - _timeFrom) * Constants.PINT) / YEAR_IN_SECONDS;
+        result = Constants.PINT + ((result * _rate) / Constants.PINT);
+        return result;
     }
 
-    function calculateCompoundInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external pure returns (uint256) {
-        uint256 exp = _timeTo.sub(uint256(_timeFrom));
+    function compoundInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external view returns (uint256) {
+        require(_timeTo >= _timeFrom, "RCL: Invalid input data");
+        uint256 exp = _timeTo - _timeFrom;
 
         if (exp == 0) {
-            return PINT;
+            return Constants.PINT;
         }
 
         uint256 expMinusOne = exp - 1;
         uint256 expMinusTwo = exp > 2 ? exp - 2 : 0;
         uint256 ratePerSecond = _rate / YEAR_IN_SECONDS;
 
-        uint256 basePowerTwo = ratePerSecond.mul(ratePerSecond).div(PINT);
-        uint256 basePowerThree = basePowerTwo.mul(ratePerSecond).div(PINT);
-
-        uint256 secondTerm = exp.mul(expMinusOne).mul(basePowerTwo) / 2;
-        uint256 thirdTerm = exp.mul(expMinusOne).mul(expMinusTwo).mul(basePowerThree) / 6;
-
-        return PINT.add(ratePerSecond.mul(exp)).add(secondTerm).add(thirdTerm);
+        uint256 basePowerTwo = (ratePerSecond * ratePerSecond);
+        uint256 basePowerThree = (basePowerTwo * ratePerSecond);
+        uint256 secondTerm = (exp * expMinusOne * basePowerTwo) / 2;
+        uint256 thirdTerm = (exp * expMinusOne * expMinusTwo * basePowerThree)  / (6 * Constants.PINT);
+        return Constants.PINT + (ratePerSecond * exp) + (secondTerm + thirdTerm) / Constants.PINT;
     }
 }

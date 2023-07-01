@@ -9,7 +9,7 @@ import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IER
 import {IAssetManager} from '../interfaces/IAssetManager.sol';
 import {IMintable} from '../../interfaces/IMintable.sol';
 
-import {Constants} from '../../utils/Contants.sol';
+import {Constants} from '../../lib/Constants.sol';
 
 contract GLPManager is IAssetManager {
     using SafeMath for uint256;

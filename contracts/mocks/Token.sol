@@ -9,19 +9,11 @@ import {Allowed} from '../interfaces/Allowed.sol';
 
 import "hardhat/console.sol";
 
-contract DToken is ERC20, Allowed, IMintable {
+contract Token is ERC20, Allowed, IMintable {
     constructor(
         string memory _name,
         string memory _symbol
     ) ERC20(_name, _symbol) Allowed(msg.sender) {}
-
-    function _transfer(
-        address _from,
-        address _to,
-        uint256 _amount
-    ) internal virtual override {
-        revert("DToken: Debt can't be transferred");
-    }
 
     function mint(
         address _user,

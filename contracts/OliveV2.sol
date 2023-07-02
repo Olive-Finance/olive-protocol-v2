@@ -146,7 +146,7 @@ contract OliveV2 is IOlive, Allowed {
 
     function getDebtValueInAsset(address _user) public view returns (uint256) {
         require(_user != address(0), "OLV: Invalid address");
-        uint256 debt = lendingPool.getDebtInWant(_user); // want token usdc
+        uint256 debt = lendingPool.getDebt(_user); // want token usdc
         address want = lendingPool.wantToken();
         return _assetManager.exchangeValue(address(want), address(_asset), debt);
     }
@@ -331,13 +331,13 @@ contract OliveV2 is IOlive, Allowed {
         address _user = msg.sender;
         uint256 paid = _deleverageForUser(_user, _leverage);
         if (slipped(_repayAmount, paid, _slippage)) revert ("OLV: Postion slipped");
+        return true;
     }
 
     function _deleverageForUser(
         address _user,
         uint256 _leverage
     ) internal hfCheck returns (uint256) {
-        address _burner = address(this);
         require(
             _leverage >= MIN_LEVERAGE && _leverage <= MAX_LEVERAGE,
             "OLV: Invalid deleverage position"

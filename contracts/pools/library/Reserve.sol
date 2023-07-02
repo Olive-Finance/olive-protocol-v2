@@ -38,7 +38,7 @@ library Reserve {
         IRateCalculator _rcl;
 
         // pool address
-        address _pool;
+        address _pool; //todo do we need this information
     }
 
     function init(ReserveData storage reserve, address aToken, address dToken, address want, address rcl, address pool) internal {

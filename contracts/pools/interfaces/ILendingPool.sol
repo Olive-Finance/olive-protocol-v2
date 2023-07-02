@@ -15,7 +15,8 @@ interface ILendingPool {
     function utilization() external view returns (uint256);
     function debtToken() external view returns (address);
     function wantToken() external view returns (address);
-    function getDebtInWant(address _user) external view returns (uint256);
+    function getDebt(address _user) external view returns (uint256);
+    function getBalance(address _user) external view returns (uint256);
 
     //events
     event Fund(address _caller, address indexed _depositor, uint256 _amount);

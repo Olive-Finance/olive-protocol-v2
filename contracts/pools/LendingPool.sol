@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.17;
 
-import {SafeMath} from '@openzeppelin/contracts/utils/math/SafeMath.sol';
 import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 
 import {ILendingPool} from './interfaces/ILendingPool.sol';
@@ -16,7 +15,6 @@ import {Constants}  from '../lib/Constants.sol';
 import "hardhat/console.sol";
 
 contract LendingPool is ILendingPool, Allowed {
-    using SafeMath for uint256;
     using Reserve for Reserve.ReserveData;
 
     Reserve.ReserveData public reserve;
@@ -27,48 +25,57 @@ contract LendingPool is ILendingPool, Allowed {
         address want,
         address rcl
     ) Allowed(msg.sender) {
-        // Initiating the reserve
         reserve.init(aToken, dToken, want, rcl, address(this));
     }
 
     // View functions
     function _debt() internal view returns (uint256) {
         IERC20 dToken = reserve._dToken;
-        uint256 supply = dToken.totalSupply();
-        return supply.mul(reserve.getNormalizedDebt()).div(Constants.PINT);
+        return (dToken.totalSupply() * reserve.getNormalizedDebt())/Constants.PINT;
     }
 
     function _available() internal view returns (uint256) {
-        address pool = reserve._pool;
         IERC20 want = reserve._want;
-        return want.balanceOf(pool);
+        return want.balanceOf(address(this));
     }
 
     function utilization() external view override returns (uint256) {
         uint256 d = _debt();
-        uint256 util = d.mul(Constants.PINT);
-        util = util.div(d.add(_available()));
-        return util;
+        return (d * Constants.PINT) / (d + _available());
     }
 
     function debtToken() external view override returns (address) {
-        IERC20 dToken = reserve._dToken;
-        return address(dToken);
+        return address(reserve._dToken);
     }
 
     function wantToken() external view override returns (address) {
-        IERC20 want = reserve._want;
-        return address(want);
+        return address(reserve._want);
     }
 
     function borrowRate() external view override returns (uint256) {
-        IRateCalculator rcl = reserve._rcl;
-        return rcl.borrowRate(this.utilization());
+        return reserve._rcl.borrowRate(this.utilization());
     }
 
     function supplyRate() external view override returns (uint256) {
-        IRateCalculator rcl = reserve._rcl;
-        return rcl.supplyRate(this.utilization());
+        return reserve._rcl.supplyRate(this.utilization());
+    }
+
+    function getDebt(address _user) external override view returns (uint256) {
+        console.log("timeStamp : ", block.timestamp);
+        uint256 balance = reserve._dToken.balanceOf(_user);
+        if (balance == 0) {
+            return balance;
+        }
+        return (reserve.getNormalizedDebt() * balance) / Constants.PINT;
+    }
+
+    function getBalance(address _user) external override view returns (uint256) {
+        console.log("timeStamp : ", block.timestamp);
+        uint256 balance = reserve._aToken.balanceOf(_user);
+        if (balance == 0) {
+            return balance;
+        }
+        return (reserve.getNormalizedIncome() * balance) / Constants.PINT;
     }
 
     // Internal repeated function
@@ -78,9 +85,7 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 _borrow,
         uint256 _repay
     ) internal returns (bool) {
-        // Common function to be called before execution of deposit, borrow, repay, withdraw
         reserve.updateState();
-
         reserve.updateRates(
             _debt(),
             _available(),
@@ -106,8 +111,7 @@ contract LendingPool is ILendingPool, Allowed {
         IERC20 dToken = reserve._dToken;
         IMintable doToken = IMintable(address(dToken));
 
-        uint256 borrowIndex = reserve._borrowIndex;
-        uint256 scaledBalance = _amount.mul(Constants.PINT).div(borrowIndex);
+        uint256 scaledBalance = (_amount * Constants.PINT) / reserve._borrowIndex;
 
         doToken.mint(_user, scaledBalance);
 
@@ -129,8 +133,7 @@ contract LendingPool is ILendingPool, Allowed {
         IERC20 want = reserve._want;
         want.transferFrom(_user, address(this), _amount);
 
-        uint256 supplyIndex = reserve._supplyIndex;
-        uint256 scaledAmount = _amount.mul(Constants.PINT).div(supplyIndex);
+        uint256 scaledAmount = (_amount * Constants.PINT) / reserve._supplyIndex;
 
         IERC20 aToken = reserve._aToken;
         IMintable maToken = IMintable(address(aToken));
@@ -144,16 +147,15 @@ contract LendingPool is ILendingPool, Allowed {
         address _user = msg.sender;
         require(_user != address(0), "POL: Null address");
         require(_shares > 0, "POL: Zero/Negative amount");
-
-        //todo fix the shares to supply balance
-        updateReserve(uint256(0), _shares, uint256(0), uint256(0));
-
-        uint256 supplyIndex = reserve._supplyIndex;
-        uint256 wantAmount = _shares.mul(supplyIndex).div(Constants.PINT);
-
         IERC20 aToken = reserve._aToken;
-        IMintable maToken = IMintable(address(aToken));
+        require(_shares <= aToken.balanceOf(_user), "POL: Not enough shares");
 
+        uint256 value = (reserve.getNormalizedIncome() * _shares) / Constants.PINT ;
+        updateReserve(uint256(0), value, uint256(0), uint256(0));
+
+        uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
+        
+        IMintable maToken = IMintable(address(aToken));
         maToken.burn(_user, _shares);
 
         IERC20 want = reserve._want;
@@ -171,9 +173,8 @@ contract LendingPool is ILendingPool, Allowed {
         require(_user != address(0), "POL: Null address");
 
         updateReserve(uint256(0), uint256(0), uint256(0), _amount);
-
-        uint256 borrowIndex = reserve._borrowIndex;
-        uint256 burnableShares = _amount.mul(Constants.PINT).div(borrowIndex);
+         
+        uint256 burnableShares = (_amount * Constants.PINT) / reserve._borrowIndex ;
 
         IERC20 want = reserve._want;
         want.transferFrom(_vault, address(this), _amount);
@@ -184,29 +185,4 @@ contract LendingPool is ILendingPool, Allowed {
 
         return true;
     }
-
-    function getDebt(address _user) public view returns (uint256) {
-        console.log("timeStamp : ", block.timestamp);
-        IERC20 dToken = reserve._dToken;
-        uint256 balance = dToken.balanceOf(_user);
-        if (balance == 0) {
-            return balance;
-        }
-        return reserve.getNormalizedDebt().mul(balance).div(Constants.PINT);
-    }
-
-    function getBalance(address _user) public view returns (uint256) {
-        console.log("timeStamp : ", block.timestamp);
-        IERC20 aToken = reserve._aToken;
-        uint256 balance = aToken.balanceOf(_user);
-        if (balance == 0) {
-            return balance;
-        }
-        uint256 nii = reserve.getNormalizedIncome();
-        return nii.mul(balance).div(Constants.PINT);
-    }
-
-    function getDebtInWant(
-        address _user
-    ) external view override returns (uint256) {}
 }

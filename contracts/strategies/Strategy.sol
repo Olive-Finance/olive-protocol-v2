@@ -12,12 +12,12 @@ import {IGMXRouter}  from './GLP/interfaces/IGMXRouter.sol';
 
 contract Strategy is IStrategy {
     //List of addresses
-    IERC20 public _asset;
+    IERC20 public asset;
     IERC20 public _native;
 
-    address public _sToken;
+    IERC20 public sToken;
 
-    address public _treasury;
+    address public treasury;
 
     IGMXRouter public _gmxRouter;
 
@@ -26,20 +26,20 @@ contract Strategy is IStrategy {
     using SafeMath for uint256;
 
     constructor(
-        address asset,
-        address sToken,
-        address treasury
+        address _asset,
+        address _sToken,
+        address _treasury
     ) {
-        _asset = IERC20(asset);
-        _sToken = sToken;
-        _treasury = treasury;
+        asset = IERC20(asset);
+        sToken = IERC20(_sToken);
+        treasury = _treasury;
     }
 
     function deposit(address _user, uint256 _amount) external override {
         require(_user != address(0), "Strat: Null address");
         require(_amount > 0, "STR: Zero/Negative amount");
 
-        IMintable lpToken = IMintable(_sToken);
+        IMintable lpToken = IMintable(address(sToken));
         lpToken.mint(_user, _amount);
     }
 
@@ -48,18 +48,12 @@ contract Strategy is IStrategy {
         uint256 _amount
     ) external override returns (uint256) {
         require(_amount > 0, "STR: Zero/Negative amount");
-
-        IERC20 sToken = IERC20(_sToken); // strategy shares
         uint256 tokenBalance = sToken.balanceOf(_user);
-
         require(tokenBalance >= _amount, "STR: Insufficient balance");
 
-        IMintable sBurnToken = IMintable(_sToken);
+        IMintable sBurnToken = IMintable(address(sToken));
         sBurnToken.burn(_user, _amount);
-
-        IERC20 asset = IERC20(_asset); // Transfer the amount
         asset.transfer(_user, _amount);
-
         return _amount;
     }
 
@@ -86,6 +80,12 @@ contract Strategy is IStrategy {
     }
 
     function balance() external view override returns (uint256) {
-        return _asset.balanceOf(address(this));
+        return asset.balanceOf(address(this));
     }
+
+    function balanceOf(address _user) external view override returns (uint256) {
+        return sToken.balanceOf(_user);
+    }
+
+    function 
 }

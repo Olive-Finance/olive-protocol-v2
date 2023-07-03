@@ -83,6 +83,24 @@ describe("Lending pool tests", function(){
             expect(await doUSDC.balanceOf(u2.address)).to.equal(toN(500));
         });
 
+        it("U1 - Funds 1000USDC(t0) and U2 borrows 500USDC (t1), pays full at(t2)", async function(){
+            const {owner, u1, u2, usdc, aUSDC, doUSDC, pool} = await setupLendingPool();
+            expect(await usdc.balanceOf(pool.address)).to.equal(0);
+            await pool.connect(u1).fund(toN(1000));
+            await time.increase(24*3600);
+            await pool.connect(u2).borrow(u2.address, u2.address, toN(500));
+            expect(await usdc.balanceOf(pool.address)).to.equal(toN(500));
+            expect(await usdc.balanceOf(u2.address)).to.equal(toN(500));
+            await time.increase(366*24*3600); 
+            expect(await pool.getDebt(u2.address)).to.equal(ethers.utils.parseUnits('521768709221334598000', 0));
+            expect(await pool.getBalance(u1.address)).to.equal(ethers.utils.parseUnits('1014205479452054793000', 0));
+            expect(await aUSDC.balanceOf(u1.address)).to.equal(toN(1000));
+            expect(await doUSDC.balanceOf(u2.address)).to.equal(toN(500));
+            await usdc.connect(owner).mint(u2.address, toN(30));
+            await pool.connect(u2).repay(u2.address, u2.address, ethers.utils.parseUnits('521768709221334598000', 0));
+            expect(await doUSDC.balanceOf(u2.address)).to.equal(ethers.utils.parseUnits('1347649496660', 0));
+            await time.increase(366*24*3600); // should not generate interest
+            expect(await pool.getBalance(u1.address)).to.equal(ethers.utils.parseUnits('1014205480436311369000', 0));
+        });
     });
-
 });

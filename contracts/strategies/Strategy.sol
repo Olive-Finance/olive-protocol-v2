@@ -30,7 +30,7 @@ contract Strategy is IStrategy {
         address _sToken,
         address _treasury
     ) {
-        asset = IERC20(asset);
+        asset = IERC20(_asset);
         sToken = IERC20(_sToken);
         treasury = _treasury;
     }

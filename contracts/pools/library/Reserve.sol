@@ -6,8 +6,6 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IRateCalculator} from './../interfaces/IRateCalculator.sol';
 import {Constants} from '../../lib/Constants.sol';
 
-import 'hardhat/console.sol';
-
 library Reserve {
     struct ReserveData {
         // supply index for scaled balance of supply tokens
@@ -65,35 +63,20 @@ library Reserve {
      * Update the state which is the supply and borrow indices
      */
     function updateState(ReserveData storage reserve) internal {
-
         uint256 currentTimestamp = block.timestamp;
         IRateCalculator rcl = reserve._rcl;
         uint256 reserveLastUpdated = reserve._lastUpdatedTimestamp;
 
         // update liquidity index
-        uint256 prevSupplyIndex = reserve._supplyIndex;
-        console.log("prevSupplyIndex: ", prevSupplyIndex);
-        uint256 supplyRate = reserve._supplyRate;
-        console.log("supplyRate: ", supplyRate);
-        uint256 supplyIndex = rcl.simpleInterest(supplyRate, uint256(reserveLastUpdated), currentTimestamp);
-        reserve._supplyIndex = (supplyIndex * prevSupplyIndex)/Constants.PINT;
-        console.log("SupplyIndex: ", supplyIndex);
-        
+        uint256 si = rcl.simpleInterest(reserve._supplyRate, uint256(reserveLastUpdated), currentTimestamp);
+        reserve._supplyIndex = (si * reserve._supplyIndex) / Constants.PINT;
+
         
         // update borrow index
-        uint256 prevBorrowIndex = reserve._borrowIndex;
-        console.log("prevBorrowIndex: ", prevBorrowIndex);
-        console.log(address(reserve._dToken));
-        console.log("Total debt tokens:", reserve._dToken.totalSupply());
-        IERC20 debtToken = reserve._dToken;
-        uint256 totalDebt = debtToken.totalSupply();
-        console.log("Total debt tokens:", totalDebt / 1e8);
+        uint256 totalDebt = reserve._dToken.totalSupply();
         if( totalDebt > 0) { // Don't have to compute borrow index as there is no borrow
-            console.log("I am inside to compute the borrow");
-            uint256 borrowRate = reserve._borrowRate;
-            uint256 borrowIndex = rcl.compoundInterest(borrowRate, reserveLastUpdated, currentTimestamp);
-            reserve._borrowIndex = (borrowIndex * prevBorrowIndex) / Constants.PINT;
-            console.log("BorrowIndex:", borrowIndex);
+            uint256 ci = rcl.compoundInterest(reserve._borrowRate, reserveLastUpdated, currentTimestamp);
+            reserve._borrowIndex = (ci * reserve._borrowIndex) / Constants.PINT;
         }
 
         // update timestamp
@@ -102,55 +85,43 @@ library Reserve {
 
     function getNormalizedIncome(ReserveData storage reserve) internal view returns (uint256) {
         uint256 reserveTimestamp = reserve._lastUpdatedTimestamp;
-
         uint256 supplyIndex = reserve._supplyIndex;
-
         if (reserveTimestamp == block.timestamp) {
             return supplyIndex;
         }
-
         IRateCalculator rcl = reserve._rcl;
-        uint256 increment = rcl.simpleInterest(reserve._supplyRate, reserveTimestamp, block.timestamp);
-        supplyIndex = (increment * supplyIndex) / Constants.PINT;
+        uint256 si = rcl.simpleInterest(reserve._supplyRate, reserveTimestamp, block.timestamp);
+        supplyIndex = (si * supplyIndex) / Constants.PINT;
         return supplyIndex;
     }
 
     function getNormalizedDebt(ReserveData storage reserve) internal view returns (uint256) {
         uint256 reserveTimestamp = reserve._lastUpdatedTimestamp;
         uint256 borrowIndex = reserve._borrowIndex;
-
         if (reserveTimestamp == block.timestamp) {
             return borrowIndex;
         }
-
         IRateCalculator rcl = reserve._rcl;
-        uint256 increment = rcl.compoundInterest(reserve._borrowRate, reserveTimestamp, block.timestamp);
-        borrowIndex = (increment * borrowIndex) / Constants.PINT;
+        uint256 ci = rcl.compoundInterest(reserve._borrowRate, reserveTimestamp, block.timestamp);
+        borrowIndex = (ci * borrowIndex) / Constants.PINT;
         return borrowIndex;
     }
 
     function updateRates(ReserveData storage reserve, 
         uint256 totalBorrwedDebt,
         uint256 totalliquidity,
-        uint256 supplyAdded,
-        uint256 supplyRemoved,
-        uint256 borrowRequested,
-        uint256 borrowRepayed
+        uint256 supply,
+        uint256 withdraw,
+        uint256 borrow,
+        uint256 repay
     ) internal {
-        console.log("Total debt: ", totalBorrwedDebt);
-        uint256 debt = totalBorrwedDebt + borrowRequested - borrowRepayed;
-        uint256 liquidity = totalliquidity + supplyAdded - supplyRemoved;
-
+        uint256 debt = totalBorrwedDebt + borrow - repay;
+        uint256 liquidity = totalliquidity + supply - withdraw;
         uint256 utilization = 0;
-
         if (debt!=0) {
             utilization = (debt * Constants.PINT) / (liquidity + debt);
         }
-        console.log("Utilization: ", utilization);
         reserve._borrowRate = reserve._rcl.borrowRate(utilization);
         reserve._supplyRate = reserve._rcl.supplyRate(utilization);
-
-        console.log("Borrow rate: ", reserve._borrowRate/1e10);
-        console.log("Supply rate: ", reserve._supplyRate/1e10);
     }
 }

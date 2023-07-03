@@ -17,10 +17,10 @@ library Reserve {
         uint256 _borrowIndex;
 
         // supply rate for lenders
-        uint256 _currentSupplyRate;
+        uint256 _supplyRate;
 
         // borrow rate for borrowers
-        uint256 _currentBorrowRate;
+        uint256 _borrowRate;
 
         // last updated timestamp 
         uint256 _lastUpdatedTimestamp;
@@ -73,7 +73,7 @@ library Reserve {
         // update liquidity index
         uint256 prevSupplyIndex = reserve._supplyIndex;
         console.log("prevSupplyIndex: ", prevSupplyIndex);
-        uint256 supplyRate = reserve._currentSupplyRate;
+        uint256 supplyRate = reserve._supplyRate;
         console.log("supplyRate: ", supplyRate);
         uint256 supplyIndex = rcl.simpleInterest(supplyRate, uint256(reserveLastUpdated), currentTimestamp);
         reserve._supplyIndex = (supplyIndex * prevSupplyIndex)/Constants.PINT;
@@ -90,7 +90,7 @@ library Reserve {
         console.log("Total debt tokens:", totalDebt / 1e8);
         if( totalDebt > 0) { // Don't have to compute borrow index as there is no borrow
             console.log("I am inside to compute the borrow");
-            uint256 borrowRate = reserve._currentBorrowRate;
+            uint256 borrowRate = reserve._borrowRate;
             uint256 borrowIndex = rcl.compoundInterest(borrowRate, reserveLastUpdated, currentTimestamp);
             reserve._borrowIndex = (borrowIndex * prevBorrowIndex) / Constants.PINT;
             console.log("BorrowIndex:", borrowIndex);
@@ -110,7 +110,7 @@ library Reserve {
         }
 
         IRateCalculator rcl = reserve._rcl;
-        uint256 increment = rcl.simpleInterest(supplyIndex, reserveTimestamp, block.timestamp);
+        uint256 increment = rcl.simpleInterest(reserve._supplyRate, reserveTimestamp, block.timestamp);
         supplyIndex = (increment * supplyIndex) / Constants.PINT;
         return supplyIndex;
     }
@@ -124,7 +124,7 @@ library Reserve {
         }
 
         IRateCalculator rcl = reserve._rcl;
-        uint256 increment = rcl.compoundInterest(borrowIndex, reserveTimestamp, block.timestamp);
+        uint256 increment = rcl.compoundInterest(reserve._borrowRate, reserveTimestamp, block.timestamp);
         borrowIndex = (increment * borrowIndex) / Constants.PINT;
         return borrowIndex;
     }
@@ -140,21 +140,17 @@ library Reserve {
         console.log("Total debt: ", totalBorrwedDebt);
         uint256 debt = totalBorrwedDebt + borrowRequested - borrowRepayed;
         uint256 liquidity = totalliquidity + supplyAdded - supplyRemoved;
-        uint256 utilization = debt * Constants.PINT;
-        liquidity = liquidity + totalBorrwedDebt; // At this stage the borrow did not happen - don't need to correct the denominator
-        utilization = utilization / liquidity;
 
+        uint256 utilization = 0;
+
+        if (debt!=0) {
+            utilization = (debt * Constants.PINT) / (liquidity + debt);
+        }
         console.log("Utilization: ", utilization);
+        reserve._borrowRate = reserve._rcl.borrowRate(utilization);
+        reserve._supplyRate = reserve._rcl.supplyRate(utilization);
 
-        IRateCalculator rcl = reserve._rcl;
-
-        uint256 _borrowRate = rcl.borrowRate(utilization);
-        uint256 _supplyRate = rcl.supplyRate(utilization);
-
-        console.log(_borrowRate);
-        console.log(_supplyRate);
-
-        reserve._currentBorrowRate = _borrowRate;
-        reserve._currentSupplyRate = _supplyRate;
+        console.log("Borrow rate: ", reserve._borrowRate/1e10);
+        console.log("Supply rate: ", reserve._supplyRate/1e10);
     }
 }

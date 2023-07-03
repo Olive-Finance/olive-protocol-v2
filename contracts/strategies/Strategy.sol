@@ -86,6 +86,4 @@ contract Strategy is IStrategy {
     function balanceOf(address _user) external view override returns (uint256) {
         return sToken.balanceOf(_user);
     }
-
-    function 
 }

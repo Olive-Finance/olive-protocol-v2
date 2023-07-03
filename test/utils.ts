@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { utils } from "ethers";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
 export function toN(n : any) {
     return utils.parseUnits(n.toString(), 18);
@@ -36,8 +37,21 @@ export async function deployLendingPool() {
 
     // USDC Lending pool
     const LPUSDC = await ethers.getContractFactory("LendingPool");
-    const pool = await LPUSDC.deploy(usdc.address, aUSDC.address, doUSDC.address, rcl.address);
+    const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
     await pool.deployed();
 
+    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
+}
+
+export async function setupLendingPool() {
+    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool} = await loadFixture(deployLendingPool);
+    await pool.grantRole(u1.address);
+    await pool.grantRole(u2.address);
+    await aUSDC.grantRole(pool.address);
+    await doUSDC.grantRole(pool.address);
+    
+    await usdc.connect(owner).mint(u1.address, toN(1e8));
+    await usdc.connect(u1).approve(pool.address, toN(1e20));
+    await usdc.connect(u2).approve(pool.address, toN(1e20));
     return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
 }

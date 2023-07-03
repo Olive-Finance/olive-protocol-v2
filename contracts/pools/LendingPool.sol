@@ -12,8 +12,6 @@ import {Allowed} from '../interfaces/Allowed.sol';
 import {Reserve} from './library/Reserve.sol';
 import {Constants}  from '../lib/Constants.sol';
 
-import "hardhat/console.sol";
-
 contract LendingPool is ILendingPool, Allowed {
     using Reserve for Reserve.ReserveData;
 
@@ -61,7 +59,6 @@ contract LendingPool is ILendingPool, Allowed {
     }
 
     function getDebt(address _user) external override view returns (uint256) {
-        console.log("timeStamp : ", block.timestamp);
         uint256 balance = reserve._dToken.balanceOf(_user);
         if (balance == 0) {
             return balance;
@@ -70,7 +67,6 @@ contract LendingPool is ILendingPool, Allowed {
     }
 
     function getBalance(address _user) external override view returns (uint256) {
-        console.log("timeStamp : ", block.timestamp);
         uint256 balance = reserve._aToken.balanceOf(_user);
         if (balance == 0) {
             return balance;

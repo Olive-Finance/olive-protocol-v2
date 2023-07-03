@@ -72,12 +72,12 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       chainId: 1337
-    },
-    polygon: {
-      url: "https://rpc-mumbai.maticvigil.com/",
-      chainId: 80001,
-      accounts:["9c82bd0ac5196c9cb9391d1a603cdca565318fd767653d0ecacd4beb6a0a1768"]
-    },
+    }
+  },
+  gasReporter: {
+    enabled: true,
+    currency: "USD",
+    noColors: false
   }
 };
 

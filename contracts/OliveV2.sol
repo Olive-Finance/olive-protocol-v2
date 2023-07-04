@@ -50,6 +50,9 @@ contract OliveV2 is IOlive, Allowed {
     // Allowed address for same block transactions
     mapping(address => bool) public allowedTxtor;
 
+    //Price per share
+    uint256 public pps = Constants.PINT; 
+
     constructor(
         address asset,
         address oToken,
@@ -129,6 +132,7 @@ contract OliveV2 is IOlive, Allowed {
     modifier hfCheck() {
         address caller = msg.sender;
         _;
+        console.log("HF: ", this.hf(caller)/1e16);
         require(
             this.hf(caller) > HF_THRESHOLD,
             "OLV: Degarded HF, Liquidation risk"
@@ -152,11 +156,11 @@ contract OliveV2 is IOlive, Allowed {
     }
 
     function getPricePerShare() external view override returns (uint256) {
-       return (balanceOf() * Constants.PINT) / totalSupply() ;
+        return pps;
     }
 
     function balanceOf() public view returns (uint256) {
-        return _asset.balanceOf(address(_strategy)) + _asset.balanceOf(address(this));
+        return _strategy.balanceOf(address(this)) + _asset.balanceOf(address(this));
     }
 
     function totalSupply() public view returns (uint256) {
@@ -186,7 +190,7 @@ contract OliveV2 is IOlive, Allowed {
         if (debt == 0) {
             return Constants.MAX_INT;
         }
-        return (posValue * LIQUIDATION_THRESHOLD) / debt;
+        return (posValue * Constants.PINT) / debt;
     }
 
     function getBurnableShares(
@@ -237,6 +241,8 @@ contract OliveV2 is IOlive, Allowed {
         uint256 debt = ((_leverage - this.getLeverage(_user)) * totalCollateral) / Constants.PINT;
         uint256 bought = 0;
 
+        console.log("debt: ", debt/1e18);
+
         _asset.transferFrom(_user, address(this), _amount);
         if (debt > 0) {
             bought = _borrowNBuy(_user, debt);
@@ -268,6 +274,7 @@ contract OliveV2 is IOlive, Allowed {
         require(_user != address(0) && _user != address(this), "OLV: Invalid Address");
         IERC20 want = IERC20(lendingPool.wantToken());
         uint256 debtInWant = _assetManager.exchangeValue(address(_asset), address(want), _debt);
+        console.log("Debt in want: ", debtInWant/1e18);
         uint256 borrowed = _borrow(_user, debtInWant);
         bool isApproved = want.approve(address(_assetManager), borrowed);
         if (!isApproved) revert("OLV: Approval failed");
@@ -321,6 +328,15 @@ contract OliveV2 is IOlive, Allowed {
     function _redeem(uint256 _shares) internal returns (uint256) {
         require(_shares > 0, "OLV: Invalid shares");
         return _strategy.withdraw(address(this), _shares); 
+    }
+    
+    // Call post harvest and compound
+    function setPricePerShare() internal {
+        if (totalSupply() == 0) {
+            pps = Constants.PINT;
+            return;
+        }
+        pps = (balanceOf() * Constants.PINT) / totalSupply();
     }
 
     function deleverage(

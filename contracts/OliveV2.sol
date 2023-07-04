@@ -34,7 +34,7 @@ contract OliveV2 is IOlive, Allowed {
     address public _treasury;
 
     // Pool for borrowing
-    ILendingPool public lendingPool;
+    ILendingPool public lendingPool;    
   
     // Vault parameters
     uint256 public MAX_LEVERAGE;
@@ -221,11 +221,11 @@ contract OliveV2 is IOlive, Allowed {
     }
 
     function slipped(
-        uint256 computed,
-        uint256 actual,
-        uint256 tolerance
-    ) internal pure returns (bool) {
-        return computed > (actual * (Constants.PINT - tolerance)) / Constants.PINT;
+        uint256 _expected,
+        uint256 _actual,
+        uint256 _tolarance
+    ) internal view returns (bool) {
+        return !(_actual >= (_expected * (Constants.PINT - _tolarance)) / Constants.PINT);
     }
 
     // Vault functions

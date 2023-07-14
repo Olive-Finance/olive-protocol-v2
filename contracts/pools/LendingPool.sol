@@ -77,7 +77,7 @@ contract LendingPool is ILendingPool, Allowed {
     // Internal repeated function
     function updateReserve(
         uint256 _supply,
-        uint256 _withdraw, // This is coming as shares
+        uint256 _withdraw,
         uint256 _borrow,
         uint256 _repay
     ) internal returns (bool) {
@@ -117,7 +117,7 @@ contract LendingPool is ILendingPool, Allowed {
         return _amount;
     }
 
-    function fund(
+    function supply(
         uint256 _amount // Want token
     ) external override returns (bool) {
         address _user = msg.sender;

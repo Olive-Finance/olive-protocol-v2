@@ -33,8 +33,4 @@ contract OToken is ERC20, Allowed, IMintable {
         emit Burned(msg.sender, _user, _amount);
         return true;
     }
-
-    function _beforeTokenTransfer(address _from, address _to, uint256 _amount) internal virtual override {
-        // todo add the hf check for transfer
-    }
 }

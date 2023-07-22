@@ -16,7 +16,7 @@ describe("Lending pool tests", function(){
         it("U1 - Funds 1000USDC token", async function(){
             const {owner, u1, u2, usdc, aUSDC, pool} = await setupLendingPool();
             expect(await usdc.balanceOf(pool.address)).to.equal(0);
-            await pool.connect(u1).fund(toN(1000));
+            await pool.connect(u1).supply(toN(1000));
             expect(await usdc.balanceOf(pool.address)).to.equal(toN(1000));
             expect(await aUSDC.balanceOf(u1.address)).to.equal(toN(1000));
             
@@ -25,9 +25,9 @@ describe("Lending pool tests", function(){
         it("U1 - Funds 1000 + 200, No borrow, no interest", async function(){
             const {owner, u1, u2, usdc, aUSDC, pool} = await setupLendingPool();
             expect(await usdc.balanceOf(pool.address)).to.equal(0);
-            await pool.connect(u1).fund(toN(1000));
+            await pool.connect(u1).supply(toN(1000));
             await time.increase(3600);
-            await pool.connect(u1).fund(toN(200));
+            await pool.connect(u1).supply(toN(200));
             expect(await usdc.balanceOf(pool.address)).to.equal(toN(1200));
             expect(await aUSDC.balanceOf(u1.address)).to.equal(toN(1200));
         });
@@ -35,9 +35,9 @@ describe("Lending pool tests", function(){
         it("U1 - Get all amount back, 1000 USDC + 200 USDC - no borrow", async function(){
             const {owner, u1, u2, usdc, aUSDC, pool} = await setupLendingPool();
             expect(await usdc.balanceOf(pool.address)).to.equal(0);
-            await pool.connect(u1).fund(toN(1000));
+            await pool.connect(u1).supply(toN(1000));
             await time.increase(3600);
-            await pool.connect(u1).fund(toN(200));
+            await pool.connect(u1).supply(toN(200));
             expect(await usdc.balanceOf(pool.address)).to.equal(toN(1200));
             expect(await aUSDC.balanceOf(u1.address)).to.equal(toN(1200));
             await time.increase(3600);
@@ -56,7 +56,7 @@ describe("Lending pool tests", function(){
         it("U1 - Funds 1000USDC(t0) and U2 borrows 500USDC (t1), interest(t2)", async function(){
             const {owner, u1, u2, usdc, aUSDC, doUSDC, pool} = await setupLendingPool();
             expect(await usdc.balanceOf(pool.address)).to.equal(0);
-            await pool.connect(u1).fund(toN(1000));
+            await pool.connect(u1).supply(toN(1000));
             await time.increase(3600);
             await pool.connect(u2).borrow(u2.address, u2.address, toN(500));
             expect(await usdc.balanceOf(pool.address)).to.equal(toN(500));
@@ -71,7 +71,7 @@ describe("Lending pool tests", function(){
         it("U1 - Funds 1000USDC(t0) and U2 borrows 500USDC (t1), interest(t2)", async function(){
             const {owner, u1, u2, usdc, aUSDC, doUSDC, pool} = await setupLendingPool();
             expect(await usdc.balanceOf(pool.address)).to.equal(0);
-            await pool.connect(u1).fund(toN(1000));
+            await pool.connect(u1).supply(toN(1000));
             await time.increase(24*3600);
             await pool.connect(u2).borrow(u2.address, u2.address, toN(500));
             expect(await usdc.balanceOf(pool.address)).to.equal(toN(500));
@@ -86,7 +86,7 @@ describe("Lending pool tests", function(){
         it("U1 - Funds 1000USDC(t0) and U2 borrows 500USDC (t1), pays full at(t2)", async function(){
             const {owner, u1, u2, usdc, aUSDC, doUSDC, pool} = await setupLendingPool();
             expect(await usdc.balanceOf(pool.address)).to.equal(0);
-            await pool.connect(u1).fund(toN(1000));
+            await pool.connect(u1).supply(toN(1000));
             await time.increase(24*3600);
             await pool.connect(u2).borrow(u2.address, u2.address, toN(500));
             expect(await usdc.balanceOf(pool.address)).to.equal(toN(500));

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.17;
 
@@ -7,7 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {ILendingPool} from './interfaces/ILendingPool.sol';
 import {IRateCalculator} from './interfaces/IRateCalculator.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
-import {Allowed} from '../interfaces/Allowed.sol';
+import {Allowed} from '../utils/Allowed.sol';
 
 import {Reserve} from './library/Reserve.sol';
 import {Constants}  from '../lib/Constants.sol';

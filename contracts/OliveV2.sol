@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.17;
 
@@ -14,9 +14,7 @@ import {IOlive} from './interfaces/IOlive.sol';
 
 import {Constants} from './lib/Constants.sol';
 
-import {Allowed} from './interfaces/Allowed.sol';
-
-import "hardhat/console.sol";
+import {Allowed} from './utils/Allowed.sol';
 
 contract OliveV2 is IOlive, Allowed {
 
@@ -62,7 +60,7 @@ contract OliveV2 is IOlive, Allowed {
         uint256 minLeverage,
         uint256 maxLeverage,
         uint256 lqThreshold
-    ) Allowed(msg.sender) Pausable() {
+    ) Allowed(msg.sender) {
         _asset = IERC20(asset);
         _oToken = oToken;
         _strategy = IStrategy(strategy);
@@ -132,7 +130,6 @@ contract OliveV2 is IOlive, Allowed {
     modifier hfCheck() {
         address caller = msg.sender;
         _;
-        console.log("HF: ", this.hf(caller)/1e16);
         require(
             this.hf(caller) > HF_THRESHOLD,
             "OLV: Degarded HF, Liquidation risk"
@@ -160,7 +157,7 @@ contract OliveV2 is IOlive, Allowed {
     }
 
     function balanceOf() public view returns (uint256) {
-        return _strategy.balanceOf(address(this)) + _asset.balanceOf(address(this));
+        return _strategy.balanceOf(address(this));
     }
 
     function totalSupply() public view returns (uint256) {
@@ -241,8 +238,6 @@ contract OliveV2 is IOlive, Allowed {
         uint256 debt = ((_leverage - this.getLeverage(_user)) * totalCollateral) / Constants.PINT;
         uint256 bought = 0;
 
-        console.log("debt: ", debt/1e18);
-
         _asset.transferFrom(_user, address(this), _amount);
         if (debt > 0) {
             bought = _borrowNBuy(_user, debt);
@@ -274,7 +269,6 @@ contract OliveV2 is IOlive, Allowed {
         require(_user != address(0) && _user != address(this), "OLV: Invalid Address");
         IERC20 want = IERC20(lendingPool.wantToken());
         uint256 debtInWant = _assetManager.exchangeValue(address(_asset), address(want), _debt);
-        console.log("Debt in want: ", debtInWant/1e18);
         uint256 borrowed = _borrow(_user, debtInWant);
         bool isApproved = want.approve(address(_assetManager), borrowed);
         if (!isApproved) revert("OLV: Approval failed");

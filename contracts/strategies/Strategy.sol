@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.17;
 
@@ -9,7 +9,7 @@ import {IStrategy} from './interfaces/IStrategy.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 
 import {IGMXRouter}  from './GLP/interfaces/IGMXRouter.sol';
-import {Allowed} from '../interfaces/Allowed.sol';
+import {Allowed} from '../utils/Allowed.sol';
 
 contract Strategy is IStrategy, Allowed {
     //List of addresses

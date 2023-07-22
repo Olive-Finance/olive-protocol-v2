@@ -104,7 +104,7 @@ export async function deployOlive() {
     await usdc.connect(owner).mint(u3.address, toN(1e8));
     await usdc.connect(u3).approve(pool.address, toN(1e20));
     
-    await pool.connect(u3).fund(toN(10000));
+    await pool.connect(u3).supply(toN(10000));
     await pool.grantRole(olive.address);
 
     await astMgr.setPrice(usdc.address, toN(1));

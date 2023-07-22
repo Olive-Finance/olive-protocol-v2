@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.17;
 
 interface ILendingPool {
     // State functions
-    function fund(uint256 _amount) external returns (bool);
+    function supply(uint256 _amount) external returns (bool);
     function withdraw(uint256 _shares) external returns (bool);
     function borrow(address _to, address _user, uint256 _amount) external returns (uint256);
     function repay(address _from, address _user, uint256 _amount) external returns (bool);

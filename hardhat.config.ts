@@ -1,6 +1,7 @@
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
+require("hardhat-contract-sizer");
 const fs = require("fs");
 
 task('accounts', "Prints the list of accounts", async (taskArgs, hre) => {
@@ -68,17 +69,36 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
 
 const config: HardhatUserConfig = {
   solidity: "0.8.17",
-  settings: { optimizer: { enabled: true, runs: 500, }, },
+  settings: { optimizer: { enabled: true, runs: 500 } },
   networks: {
     hardhat: {
-      chainId: 1337
+      chainId: 1337,
+    },
+    polygon: {
+      url: "https://rpc-mumbai.maticvigil.com/",
+      chainId: 80001,
+    },
+    arbtest: {
+      url: "https://arbitrum-goerli.publicnode.com",
+      chainId: 421613,
+    },
+    arbmain: {
+      url: "https://arb1.arbitrum.io/rpc",
+      chainId: 42161,
     }
   },
   gasReporter: {
     enabled: true,
-    currency: "USD",
-    noColors: false
-  }
+    currency: "USD", // currency to show
+    noColors: false,
+  },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
+    unit: "kB",
+  },
 };
 
 export default config;

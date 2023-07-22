@@ -1,12 +1,10 @@
-// SPDX-License-Identifier: GPL-3.0
+// SPDX-License-Identifier: BUSL-1.1
 
 pragma solidity ^0.8.17;
 
 import {IRateCalculator} from './interfaces/IRateCalculator.sol';
 import {Constants} from '../lib/Constants.sol';
-import {Allowed} from '../interfaces/Allowed.sol';
-
-import "hardhat/console.sol";
+import {Allowed} from '../utils/Allowed.sol';
 
 contract RateCalculator is IRateCalculator, Allowed {
     

@@ -31,6 +31,9 @@ coverage
 # ignore file system things
 .DS_Store
 
+# ignore log files
+*.log
+
 
 
 

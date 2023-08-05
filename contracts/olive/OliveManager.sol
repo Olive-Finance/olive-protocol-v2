@@ -14,7 +14,6 @@ contract OliveManager is IRewardManager, Allowed {
     IMintable public esOlive;
     IMintable public olive;
     IERC20 public rewardToken;
-    //address public mUSDManager;
     
     uint public rewardPerTokenStored;
 

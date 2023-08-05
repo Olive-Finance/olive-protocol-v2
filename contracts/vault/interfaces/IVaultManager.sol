@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.17;
 
-interface IOlive {
+interface IVaultManager {
     
     // Contract payable functions
 

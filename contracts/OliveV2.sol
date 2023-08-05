@@ -10,13 +10,13 @@ import {IMintable} from './interfaces/IMintable.sol';
 import {IStrategy} from './strategies/interfaces/IStrategy.sol';
 import {IAssetManager} from './strategies/interfaces/IAssetManager.sol';
 
-import {IOlive} from './interfaces/IOlive.sol';
+import {IVaultManager} from './vault/interfaces/IVaultManager.sol';
 
 import {Constants} from './lib/Constants.sol';
 
 import {Allowed} from './utils/Allowed.sol';
 
-contract OliveV2 is IOlive, Allowed {
+contract OliveV2 is IVaultManager, Allowed {
 
     //Address locations for each of the tokens
     IERC20 public _asset;

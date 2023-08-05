@@ -8,6 +8,6 @@ interface IMintable {
     function burn(address _user, uint256 _amount) external returns (bool);
 
     //events 
-    event Minted(address indexed _caller, address indexed _user, uint256 _amount);
-    event Burned(address indexed _caller, address indexed _user, uint256 _amount);
+    event Mint(address indexed _caller, address indexed _user, uint256 _amount);
+    event Burn(address indexed _caller, address indexed _user, uint256 _amount);
 }

@@ -19,7 +19,7 @@ contract AToken is ERC20, Allowed, IMintable {
     ) external override onlyAllowed returns (bool) {
         require(_amount > 0, "ERC20: Invalid amount");
         _mint(_user, _amount);
-        emit Minted(msg.sender, _user, _amount);
+        emit Mint(msg.sender, _user, _amount);
         return true;
     }
 
@@ -30,7 +30,7 @@ contract AToken is ERC20, Allowed, IMintable {
         require(_amount > 0, "ERC20: Invalid amount");
         require(balanceOf(_user) >= _amount, "ERC20: Insufficient balance");
         _burn(_user, _amount);
-        emit Burned(msg.sender, _user, _amount);
+        emit Burn(msg.sender, _user, _amount);
         return true;
     }
 }

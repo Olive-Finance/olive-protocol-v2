@@ -4,7 +4,6 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
-import {IStrategy} from '../strategies/interfaces/IStrategy.sol';
 
 import {Allowed} from '../utils/Allowed.sol';
 import {Constants} from '../lib/Constants.sol';
@@ -16,19 +15,13 @@ contract VaultCore is Allowed {
     IERC20 public sToken;
 
     //Address for strategy
-    IStrategy public strategy;
+    address public strategy;
 
     //Olive treasury address
     address public treasury;
 
     // Pool for borrowing
     address public lendingPool;    
-  
-    // Struct to store the txn block number
-    mapping(address => uint256) public userTxnBlockStore;
-
-    // Allowed address for same block transactions
-    mapping(address => bool) public allowedTxtor;
 
     //Price per share
     uint256 public pps = Constants.PINT; 
@@ -48,7 +41,14 @@ contract VaultCore is Allowed {
     uint256 public HF_THRESHOLD = Constants.PINT;
 
     // Empty constructor - all the values will be set by setter functions
-    constructor () Allowed(msg.sender){}
+    constructor () Allowed(msg.sender){
+        
+    }
+
+    modifier onlyMoK() {
+        require(msg.sender == vaultManager || msg.sender == vaultKeeper , "OLV: Not an manager / keeper");
+        _;
+    }
 
     // Vault setter functions
     function setVaultManager(address _vaultManager) external onlyOwner {
@@ -78,8 +78,58 @@ contract VaultCore is Allowed {
         sToken = IERC20(_sToken);
     }
 
+    function setPPS(uint256 _pps) external onlyMoK {
+        pps = _pps;
+    }
 
     // Vault view functions
+    function getPPS() external view returns (uint256) {
+        return pps;
+    }
 
-    
+    function setTreasury() external view returns(address) {
+        return treasury;
+    }
+
+    function getAssetToken() external view returns(address) {
+        return address(asset);
+    }
+
+    function getLendingPool() external view returns(address) {
+        return lendingPool;
+    }
+
+    function getStrategy() external view returns(address) {
+        return strategy;
+    }
+
+    function totalDeposits() external view returns (uint256) {
+        return asset.balanceOf(address(this));
+    } 
+
+    // Mint / Burn / Token transfer functions
+    function mintShares(address _user, uint256 _amount) external onlyMoK {
+        require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
+        IMintable(address(oToken)).mint(_user, _amount);
+    }
+
+    function burnShares(address _user, uint256 _amount) external onlyMoK {
+        require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
+        require(oToken.balanceOf(_user) >= _amount, "OLV: Insufficient balance");
+        IMintable(address(oToken)).burn(_user, _amount);
+    }
+
+    function trasferAsset(address _to, uint256 _amount) external onlyMoK {
+        _transfer(_to, _amount);
+    }
+
+    function transferToStrategy(uint256 _amount) external onlyMoK {
+       _transfer(strategy, _amount);
+    }
+
+    function _transfer(address _to, uint256 _amount) internal {
+        require(asset.balanceOf(address(this)) >= _amount, "OLV: Inssuffient asset balance");
+        require(_to != address(0) && _amount > 0, "OLV: Invalid inputs");
+        asset.transfer(_to, _amount);
+    }
 }

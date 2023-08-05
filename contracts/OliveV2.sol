@@ -90,7 +90,7 @@ contract OliveV2 is IOlive, Allowed {
         require(
             threshold <= Constants.PINT,
             "OLV: Invalid liquidation threshold"
-        );
+        );               
         LIQUIDATION_THRESHOLD = threshold;
         return true;
     }

@@ -4,13 +4,14 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
+import {IVaultCore} from './interfaces/IVaultCore.sol';
 
 import {Allowed} from '../utils/Allowed.sol';
 import {Constants} from '../lib/Constants.sol';
 
-contract VaultCore is Allowed {
+contract VaultCore is IVaultCore, Allowed {
     //Token addresses
-    IERC20 public asset; 
+    IERC20 public asset;
     IERC20 public oToken;
     IERC20 public sToken;
 
@@ -21,10 +22,10 @@ contract VaultCore is Allowed {
     address public treasury;
 
     // Pool for borrowing
-    address public lendingPool;    
+    address public lendingPool;
 
     //Price per share
-    uint256 public pps = Constants.PINT; 
+    uint256 public pps = Constants.PINT;
 
     // Contract for doing vault actions - deposit, withdraw, leverage, deleverage
     address public vaultManager;
@@ -41,12 +42,13 @@ contract VaultCore is Allowed {
     uint256 public HF_THRESHOLD = Constants.PINT;
 
     // Empty constructor - all the values will be set by setter functions
-    constructor () Allowed(msg.sender){
-        
-    }
+    constructor() Allowed(msg.sender) {}
 
     modifier onlyMoK() {
-        require(msg.sender == vaultManager || msg.sender == vaultKeeper , "OLV: Not an manager / keeper");
+        require(
+            msg.sender == vaultManager || msg.sender == vaultKeeper,
+            "OLV: Not an manager / keeper"
+        );
         _;
     }
 
@@ -67,68 +69,92 @@ contract VaultCore is Allowed {
     }
 
     function setTreasury(address _treasury) external onlyOwner {
-        require(_treasury != address(0) && _treasury != address(this), "OLV: Invalid treasury address");
+        require(
+            _treasury != address(0) && _treasury != address(this),
+            "OLV: Invalid treasury address"
+        );
         treasury = _treasury;
     }
 
-    function setTokens(address _asset, address _oToken, address _sToken) external onlyOwner {
-        require (_asset != address(0) && _oToken != address(0) && _sToken != address(0), "OLV: Invalid tokens");
+    function setTokens(
+        address _asset,
+        address _oToken,
+        address _sToken
+    ) external onlyOwner {
+        require(
+            _asset != address(0) &&
+                _oToken != address(0) &&
+                _sToken != address(0),
+            "OLV: Invalid tokens"
+        );
         asset = IERC20(_asset);
         oToken = IERC20(_oToken);
         sToken = IERC20(_sToken);
     }
 
-    function setPPS(uint256 _pps) external onlyMoK {
+    function setPPS(uint256 _pps) external override onlyMoK {
         pps = _pps;
     }
 
     // Vault view functions
-    function getPPS() external view returns (uint256) {
+    function getPPS() external view override returns (uint256) {
         return pps;
     }
 
-    function setTreasury() external view returns(address) {
+    function getTreasury() external view override returns (address) {
         return treasury;
     }
 
-    function getAssetToken() external view returns(address) {
+    function getAssetToken() external view override returns (address) {
         return address(asset);
     }
 
-    function getLendingPool() external view returns(address) {
+    function getLendingPool() external view returns (address) {
         return lendingPool;
     }
 
-    function getStrategy() external view returns(address) {
+    function getStrategy() external view returns (address) {
         return strategy;
     }
 
-    function totalDeposits() external view returns (uint256) {
-        return asset.balanceOf(address(this));
-    } 
+    function totalDeposits() external view override returns (uint256) {
+        return asset.balanceOf(strategy);
+    }
 
     // Mint / Burn / Token transfer functions
-    function mintShares(address _user, uint256 _amount) external onlyMoK {
+    function mintShares(
+        address _user,
+        uint256 _amount
+    ) external override onlyMoK {
         require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
         IMintable(address(oToken)).mint(_user, _amount);
     }
 
-    function burnShares(address _user, uint256 _amount) external onlyMoK {
+    function burnShares(
+        address _user,
+        uint256 _amount
+    ) external override onlyMoK {
         require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
-        require(oToken.balanceOf(_user) >= _amount, "OLV: Insufficient balance");
+        require(
+            oToken.balanceOf(_user) >= _amount,
+            "OLV: Insufficient balance"
+        );
         IMintable(address(oToken)).burn(_user, _amount);
     }
 
-    function trasferAsset(address _to, uint256 _amount) external onlyMoK {
+    function transferAsset(address _to, uint256 _amount) external onlyMoK {
         _transfer(_to, _amount);
     }
 
     function transferToStrategy(uint256 _amount) external onlyMoK {
-       _transfer(strategy, _amount);
+        _transfer(strategy, _amount);
     }
 
     function _transfer(address _to, uint256 _amount) internal {
-        require(asset.balanceOf(address(this)) >= _amount, "OLV: Inssuffient asset balance");
+        require(
+            asset.balanceOf(address(this)) >= _amount,
+            "OLV: Inssuffient asset balance"
+        );
         require(_to != address(0) && _amount > 0, "OLV: Invalid inputs");
         asset.transfer(_to, _amount);
     }

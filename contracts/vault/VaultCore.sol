@@ -9,7 +9,7 @@ import {IVaultCore} from './interfaces/IVaultCore.sol';
 import {Allowed} from '../utils/Allowed.sol';
 import {Constants} from '../lib/Constants.sol';
 
-contract VaultCore is IVaultCore, Allowed {
+abstract contract VaultCore is IVaultCore, Allowed {
     //Token addresses
     IERC20 public asset;
     IERC20 public oToken;
@@ -40,38 +40,44 @@ contract VaultCore is IVaultCore, Allowed {
     uint256 public HF_THRESHOLD = Constants.PINT;
 
     // Empty constructor - all the values will be set by setter functions
-    constructor() Allowed(msg.sender) {}
+    constructor(address owner) Allowed(owner) {}
 
     modifier onlyMoK() {
         require(
             msg.sender == vaultManager || msg.sender == vaultKeeper,
-            "OLV: Not an manager / keeper"
+            "VC: Not an manager / keeper"
         );
         _;
     }
 
     // Vault setter functions
     function setVaultManager(address _vaultManager) external onlyOwner {
-        require(_vaultManager != address(0), "OLV: Invalid vault manager");
+        require(_vaultManager != address(0), "VC: Invalid vault manager");
         vaultManager = _vaultManager;
     }
 
     function setVaultKeeper(address _vaultKeeper) external onlyOwner {
-        require(_vaultKeeper != address(0), "OLV: Invalid vault keeper");
+        require(_vaultKeeper != address(0), "VC: Invalid vault keeper");
         vaultKeeper = _vaultKeeper;
     }
 
     function setLendingPool(address _lendingPool) external onlyOwner {
-        require(_lendingPool != address(0), "OLV: Invalid lending pool");
+        require(_lendingPool != address(0), "VC: Invalid lending pool");
         lendingPool = _lendingPool;
     }
 
     function setTreasury(address _treasury) external onlyOwner {
         require(
             _treasury != address(0) && _treasury != address(this),
-            "OLV: Invalid treasury address"
+            "VC: Invalid treasury address"
         );
         treasury = _treasury;
+    }
+
+    function setLeverage(uint256 _minLeverage, uint256 _maxLeverage) external onlyOwner {
+        require(_maxLeverage > _minLeverage, "VC: Invalid leverage");
+        MIN_LEVERAGE = _minLeverage;
+        MAX_LEVERAGE = _maxLeverage;
     }
 
     function setTokens(
@@ -83,7 +89,7 @@ contract VaultCore is IVaultCore, Allowed {
             _asset != address(0) &&
                 _oToken != address(0) &&
                 _sToken != address(0),
-            "OLV: Invalid tokens"
+            "VC: Invalid tokens"
         );
         asset = IERC20(_asset);
         oToken = IERC20(_oToken);
@@ -149,7 +155,7 @@ contract VaultCore is IVaultCore, Allowed {
         address _user,
         uint256 _amount
     ) external override whenNotPaused onlyMoK {
-        require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
+        require(_user != address(0) && _amount > 0, "VC: Invalid inputs");
         IMintable(address(oToken)).mint(_user, _amount);
     }
 
@@ -157,10 +163,10 @@ contract VaultCore is IVaultCore, Allowed {
         address _user,
         uint256 _amount
     ) external override whenNotPaused onlyMoK {
-        require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
+        require(_user != address(0) && _amount > 0, "VC: Invalid inputs");
         require(
             oToken.balanceOf(_user) >= _amount,
-            "OLV: Insufficient balance"
+            "VC: Insufficient balance"
         );
         IMintable(address(oToken)).burn(_user, _amount);
     }
@@ -176,9 +182,9 @@ contract VaultCore is IVaultCore, Allowed {
     function _transfer(address _to, uint256 _amount) internal whenNotPaused {
         require(
             asset.balanceOf(address(this)) >= _amount,
-            "OLV: Inssuffient asset balance"
+            "VC: Inssuffient asset balance"
         );
-        require(_to != address(0) && _amount > 0, "OLV: Invalid inputs");
+        require(_to != address(0) && _amount > 0, "VC: Invalid inputs");
         asset.transfer(_to, _amount);
     }
 }

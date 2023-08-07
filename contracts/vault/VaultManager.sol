@@ -84,9 +84,7 @@ contract VaultManager is IVaultManager, Allowed {
         return (posValue * Constants.PINT) / debt;
     }
 
-    function getLeverage(
-        address _user
-    ) external view override returns (uint256) {
+    function getLeverage(address _user) external view override returns (uint256) {
         uint256 posValue = getPosValueInAsset(_user);
         uint256 debt = getDebtValueInAsset(_user);
         if (debt == 0) {
@@ -143,26 +141,14 @@ contract VaultManager is IVaultManager, Allowed {
                 (_expected * (Constants.PINT - _tolarance)) / Constants.PINT);
     }
 
-    function _borrow(
-        address _user,
-        uint256 _amount
-    ) internal returns (uint256) {
+    function _borrow(address _user, uint256 _amount) internal returns (uint256) {
         require(_amount > 0, "VM: Invalid borrow amount");
         require(_user != address(0), "VM: Invalid user address");
-        return
-            ILendingPool(vaultCore.getLendingPool()).borrow(
-                address(this),
-                _user,
-                _amount
-            );
+        return ILendingPool(vaultCore.getLendingPool()).borrow(address(vaultCore), _user, _amount);
     }
 
     function _buy(address _token, uint256 _amount) internal returns (uint256) {
-        require(
-            _token != address(0) &&
-                _token == ILendingPool(vaultCore.getLendingPool()).wantToken(),
-            "VM: Invalid token"
-        );
+        require(_token != address(0) && _token == ILendingPool(vaultCore.getLendingPool()).wantToken(), "VM: Invalid token");
         require(_amount > 0, "VM: Invalid amount");
         return _assetManager.buy(address(this), _token, _amount);
     }
@@ -208,15 +194,9 @@ contract VaultManager is IVaultManager, Allowed {
             );
     }
 
-    function _borrowNBuy(
-        address _user,
-        uint256 _debt
-    ) internal returns (uint256) {
+    function _borrowNBuy(address _user, uint256 _debt) internal returns (uint256) {
         require(_debt > 0, "OLV: Invalid debt");
-        require(
-            _user != address(0) && _user != address(this),
-            "OLV: Invalid Address"
-        );
+        require(_user != address(0) && _user != address(this), "OLV: Invalid Address");
         ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
         IERC20 want = IERC20(pool.wantToken());
         uint256 debtInWant = _assetManager.exchangeValue(
@@ -240,30 +220,17 @@ contract VaultManager is IVaultManager, Allowed {
     }
 
     // Vault functions
-    function deposit(
-        uint256 _amount,
-        uint256 _leverage,
-        uint256 _expShares,
-        uint256 _slippage
-    ) external override blockCheck hfCheck returns (bool) {
-        require(
-            _leverage >= vaultCore.getMinLeverage() &&
-                _leverage <= vaultCore.getMaxLeverage(),
+    function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
+     external override blockCheck hfCheck whenNotPaused returns (bool) {
+        require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
         address _user = msg.sender;
-        uint256 totalCollateral = getPosValueInAsset(_user) -
-            getDebtValueInAsset(_user) +
-            _amount;
-        uint256 debt = ((_leverage - this.getLeverage(_user)) *
-            totalCollateral) / Constants.PINT;
+        uint256 totalCollateral = getPosValueInAsset(_user) - getDebtValueInAsset(_user) + _amount;
+        uint256 debt = ((_leverage - this.getLeverage(_user)) * totalCollateral) / Constants.PINT;
         uint256 bought = 0;
 
-        IERC20(vaultCore.getAssetToken()).transferFrom(
-            _user,
-            address(vaultCore),
-            _amount
-        );
+        IERC20(vaultCore.getAssetToken()).transferFrom(_user, address(vaultCore), _amount);
         if (debt > 0) {
             bought = _borrowNBuy(_user, debt);
         }

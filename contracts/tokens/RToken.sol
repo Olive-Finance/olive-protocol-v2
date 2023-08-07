@@ -7,7 +7,7 @@ import {IMintable} from '../interfaces/IMintable.sol';
 
 import {Allowed} from '../utils/Allowed.sol';
 
-contract OToken is ERC20, Allowed, IMintable {
+contract ROToken is ERC20, Allowed, IMintable {
     constructor(
         string memory _name,
         string memory _symbol

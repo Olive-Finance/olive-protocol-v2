@@ -1,6 +1,7 @@
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
+import { utils } from "ethers";
 require("hardhat-contract-sizer");
 const fs = require("fs");
 
@@ -16,16 +17,23 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   const ethers = hre.ethers;
   const toN = (n: any)=>{return ethers.utils.parseUnits(n.toString(), 18)};
 
+  // Get generated signer wallets
+  const accounts = await hre.ethers.getSigners();
+
+  // Get the first wallet address
+  const owner = accounts[0];
+  const u1 = accounts[1];
+
   //ASSET - GLP
   const GLP = await ethers.getContractFactory("Token");
-  const glp = await GLP.deploy('USDC Token', 'USDC');
+  const glp = await GLP.deploy('USDC Token', 'USDC', 18);
   await glp.deployed();
   console.log("GLP: ", glp.address);
 
   // Following are the asset tokens which each of the pools use
   // USDC
   const USDC = await ethers.getContractFactory("Token");
-  const usdc = await USDC.deploy('USDC Token', 'USDC');
+  const usdc = await USDC.deploy('USDC Token', 'USDC', 6);
   await usdc.deployed();
   console.log("USDC: ", usdc.address);
 
@@ -55,16 +63,45 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   const pool = await LPUSDC.deploy(usdc.address, aUSDC.address, doUSDC.address, rcl.address);
   await pool.deployed();
   console.log("lpUSDC: ", pool.address);
- 
 
-  // Get generated signer wallets
-  const accounts = await hre.ethers.getSigners();
+  // Vault tokens
+  const OToken = await ethers.getContractFactory("OToken");
+  const oGLP = await OToken.deploy('OGLP Token', 'oGLP');
+  await oGLP.deployed();
+  console.log("oGLP: ", oGLP.address);
 
-  // Get the first wallet address
-  const walletAddress = accounts[0].address;
+  const GLPVault = await ethers.getContractFactory("GLPVault");
+  const glpVault = await GLPVault.deploy();
+  await glpVault.deployed();
+  console.log("GLPVault: ", glpVault.address);
+
+  const VaultManager = await ethers.getContractFactory("VaultManager");
+  const vaultManager = await VaultManager.deploy();
+  await vaultManager.deployed();
+  console.log("VaultManager: ", vaultManager.address);
+
+  const GLPMock = await ethers.getContractFactory("GLPMock");
+  const glpMock = await GLPMock.deploy();
+  await glpMock.deployed();
+  console.log("GLPMock: ", glpMock.address);
+
+  await glpVault.setRewardsRouter(glpMock.address);
+  await glpVault.setGLPManager(glpMock.address);
+  await glpVault.setVaultManager(vaultManager.address);
+  await glpVault.setTreasury(owner.address);
+  await glpVault.setLendingPool(pool.address);
+  await glpVault.setLeverage(utils.parseUnits("1", 18), utils.parseUnits("5", 18));
+  await oGLP.grantRole(glpVault.address);
+
+
+  await glp.mint(u1.address, ethers.utils.parseUnits('10000', 18));
+  await usdc.mint(owner.address, ethers.utils.parseUnits('10000', 6));
+  await usdc.approve(pool.address, ethers.utils.parseUnits('10000', 26));
+  await pool.connect(owner).supply(ethers.utils.parseUnits('10000', 6));
+  await glp.connect(u1).approve(vaultManager.address, ethers.utils.parseUnits('10000', 26));
 
   // Write file
-  fs.writeFileSync('./.wallet', walletAddress);
+  fs.writeFileSync('./.wallet', owner.address);
 });
 
 const config: HardhatUserConfig = {

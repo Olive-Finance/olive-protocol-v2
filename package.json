@@ -13,6 +13,7 @@
     "console": "./node_modules/.bin/hardhat console --network localhost",
     "tc": "./node_modules/.bin/hardhat --config hardhat.config.ts test && ./node_modules/.bin/hardhat --config hardhat.config.ts coverage",
     "all": "yarn clean && yarn compile && yarn deploy && yarn tc",
+    "ad": "yarn clean && yarn compile && yarn deploy",
     "ldeploy": "yarn clean && yarn compile && yarn local-deploy",
     "c": "./node_modules/.bin/hardhat --config hardhat.config.ts coverage --solcoverjs .solcover.js",
     "cc": "yarn clean && yarn compile && yarn c",

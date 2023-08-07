@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Constants} from "../../lib/Constants.sol";
+import {IPriceHelper} from "../../helper/interfaces/IPriceHelper.sol";
 
 import {VaultCore} from "../VaultCore.sol";
 
@@ -17,9 +18,9 @@ interface GLPManager {
 }
 
 contract GLPVault is VaultCore {
-
     RewardsRouter rewardsRouter;
     address glpManager;
+    IPriceHelper priceHelper;
 
     uint256 public constant GLP_PRICE_PRECISION = 10 ** 30; // Price precision in GLP
 
@@ -36,6 +37,11 @@ contract GLPVault is VaultCore {
         glpManager = _glpManager;
     }
 
+    function setPriceHelper(address _priceHelper) external onlyOwner {
+        require(_priceHelper != address(0), "GLPC: Invalid price helper");
+        priceHelper = IPriceHelper(_priceHelper);
+    }
+
     function buy(address _tokenIn, uint256 _amount) external whenNotPaused nonReentrant onlyMoK returns (uint256) {
         require(_tokenIn != address(0) && _amount > 0, "GLPC: Invalid inputs");
         require(IERC20(_tokenIn).balanceOf(address(this)) > 0, "GLPC: Insufficient balance");
@@ -50,11 +56,14 @@ contract GLPVault is VaultCore {
         return rewardsRouter.unstakeAndRedeemGlp(_tokenOut, _amount, 0, address(this));
     }
 
-    function priceOfAsset() external view returns (uint256) {
+    function priceOfAsset() public view override returns (uint256) {
         return (GLPManager(glpManager).getPrice(true) * Constants.PINT) / GLP_PRICE_PRECISION;
     }
+
+    function getTokenValueInAsset(address _token, uint256 _amount) external view override returns (uint256) {
+        if (_amount == 0) {
+            return 0;
+        }
+        return (_amount * priceHelper.getPriceOf(_token)) / priceOfAsset();
+    }
 }
-
-
-
-

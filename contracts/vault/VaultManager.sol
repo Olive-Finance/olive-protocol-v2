@@ -67,12 +67,7 @@ contract VaultManager is IVaultManager, Allowed {
     function getDebtValueInAsset(address _user) public view returns (uint256) {
         require(_user != address(0), "VM: Invalid address");
         ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
-        return
-            _assetManager.exchangeValue(
-                pool.wantToken(),
-                address(vaultCore.getAssetToken()),
-                pool.getDebt(_user)
-            );
+        return vaultCore.getTokenValueInAsset(pool.wantToken(), pool.getDebt(_user));
     }
 
     function hf(address _user) external view returns (uint256) {
@@ -107,9 +102,7 @@ contract VaultManager is IVaultManager, Allowed {
         return IERC20(vaultCore.getLedgerToken()).totalSupply();
     }
 
-    function getBurnableShares(
-        address _user
-    ) external view override returns (uint256) {
+    function getBurnableShares(address _user) external view override returns (uint256) {
         uint256 debt = getDebtValueInAsset(_user);
         uint256 posValue = getPosValueInAsset(_user);
 
@@ -131,7 +124,7 @@ contract VaultManager is IVaultManager, Allowed {
     }
 
     // Internal functions
-    function slipped(
+    function slipped (
         uint256 _expected,
         uint256 _actual,
         uint256 _tolarance

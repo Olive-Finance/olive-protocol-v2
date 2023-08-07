@@ -36,9 +36,7 @@ contract VaultCore is IVaultCore, Allowed {
     // Vault parameters
     uint256 public MAX_LEVERAGE;
     uint256 public MIN_LEVERAGE;
-    uint256 public SLIPPAGE_TOLERANCE;
     uint256 public LIQUIDATION_THRESHOLD;
-
     uint256 public HF_THRESHOLD = Constants.PINT;
 
     // Empty constructor - all the values will be set by setter functions
@@ -92,7 +90,7 @@ contract VaultCore is IVaultCore, Allowed {
         sToken = IERC20(_sToken);
     }
 
-    function setPPS(uint256 _pps) external override onlyMoK {
+    function setPPS(uint256 _pps) external override whenNotPaused onlyMoK {
         pps = _pps;
     }
 
@@ -109,12 +107,37 @@ contract VaultCore is IVaultCore, Allowed {
         return address(asset);
     }
 
-    function getLendingPool() external view returns (address) {
+    function getLedgerToken() external view override returns (address) {
+        return address(oToken);
+    }
+
+    function getLendingPool() external view override returns (address) {
         return lendingPool;
     }
 
-    function getStrategy() external view returns (address) {
+    function getStrategy() external view override returns (address) {
         return strategy;
+    }
+
+    function getHFThreshold() external view override returns (uint256) {
+        return HF_THRESHOLD;
+    }
+
+    function getLiquidationThreshold()
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return LIQUIDATION_THRESHOLD;
+    }
+
+    function getMinLeverage() external view override returns (uint256) {
+        return MIN_LEVERAGE;
+    }
+
+    function getMaxLeverage() external view override returns (uint256) {
+        return MAX_LEVERAGE;
     }
 
     function totalDeposits() external view override returns (uint256) {
@@ -125,7 +148,7 @@ contract VaultCore is IVaultCore, Allowed {
     function mintShares(
         address _user,
         uint256 _amount
-    ) external override onlyMoK {
+    ) external override whenNotPaused onlyMoK {
         require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
         IMintable(address(oToken)).mint(_user, _amount);
     }
@@ -133,7 +156,7 @@ contract VaultCore is IVaultCore, Allowed {
     function burnShares(
         address _user,
         uint256 _amount
-    ) external override onlyMoK {
+    ) external override whenNotPaused onlyMoK {
         require(_user != address(0) && _amount > 0, "OLV: Invalid inputs");
         require(
             oToken.balanceOf(_user) >= _amount,
@@ -150,7 +173,7 @@ contract VaultCore is IVaultCore, Allowed {
         _transfer(strategy, _amount);
     }
 
-    function _transfer(address _to, uint256 _amount) internal {
+    function _transfer(address _to, uint256 _amount) internal whenNotPaused {
         require(
             asset.balanceOf(address(this)) >= _amount,
             "OLV: Inssuffient asset balance"

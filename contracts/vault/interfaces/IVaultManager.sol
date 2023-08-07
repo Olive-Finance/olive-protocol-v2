@@ -40,12 +40,6 @@ interface IVaultManager {
      */
     function closePosition(address _user) external returns (bool);
 
-    // View Functions
-    /**
-     * A view function to get the share price for given 
-     */
-    function getPricePerShare() external view returns (uint256);
-
     /**
      * A view function to get the list of withdrawable shares
      */

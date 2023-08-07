@@ -66,6 +66,11 @@ abstract contract VaultCore is IVaultCore, Allowed {
         lendingPool = _lendingPool;
     }
 
+    function setStrategy(address _strategy) external onlyOwner {
+        require(_strategy != address(0), "VC: Invalid strategy");
+        strategy = _strategy;
+    }
+
     function setTreasury(address _treasury) external onlyOwner {
         require(
             _treasury != address(0) && _treasury != address(this),

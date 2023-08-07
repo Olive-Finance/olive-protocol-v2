@@ -60,7 +60,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   // Lending pool definitions
   // USDC Lending pool
   const LPUSDC = await ethers.getContractFactory("LendingPool");
-  const pool = await LPUSDC.deploy(usdc.address, aUSDC.address, doUSDC.address, rcl.address);
+  const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
   await pool.deployed();
   console.log("lpUSDC: ", pool.address);
 
@@ -69,6 +69,10 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   const oGLP = await OToken.deploy('OGLP Token', 'oGLP');
   await oGLP.deployed();
   console.log("oGLP: ", oGLP.address);
+
+  const soGLP = await AUSDC.deploy('SOGLP Token', 'soGLP');
+  await soGLP.deployed();
+  console.log("soGLP: ", soGLP.address);
 
   const GLPVault = await ethers.getContractFactory("GLPVault");
   const glpVault = await GLPVault.deploy();
@@ -80,23 +84,39 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await vaultManager.deployed();
   console.log("VaultManager: ", vaultManager.address);
 
+  const Strategy = await ethers.getContractFactory("Strategy");
+  const strategy = await Strategy.deploy(glp.address, soGLP.address, owner.address);
+  await strategy.deployed();
+  console.log("Strategy: ", strategy.address);
+
   const GLPMock = await ethers.getContractFactory("GLPMock");
   const glpMock = await GLPMock.deploy();
   await glpMock.deployed();
   console.log("GLPMock: ", glpMock.address);
 
+  const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
+  const phMock = await PriceHelperMock.deploy();
+  await phMock.deployed();
+  console.log("PriceHelperMock: ", phMock.address);
+
+  await vaultManager.setVaultCore(glpVault.address);
   await glpVault.setRewardsRouter(glpMock.address);
   await glpVault.setGLPManager(glpMock.address);
   await glpVault.setVaultManager(vaultManager.address);
   await glpVault.setTreasury(owner.address);
   await glpVault.setLendingPool(pool.address);
   await glpVault.setLeverage(utils.parseUnits("1", 18), utils.parseUnits("5", 18));
+  await glpVault.setPriceHelper(phMock.address);
+  await glpVault.setTokens(glp.address, oGLP.address, soGLP.address);
+  await glpVault.setStrategy(strategy.address);
   await oGLP.grantRole(glpVault.address);
+  await aUSDC.grantRole(pool.address);
+  await doUSDC.grantRole(pool.address);
 
 
   await glp.mint(u1.address, ethers.utils.parseUnits('10000', 18));
   await usdc.mint(owner.address, ethers.utils.parseUnits('10000', 6));
-  await usdc.approve(pool.address, ethers.utils.parseUnits('10000', 26));
+  await usdc.connect(owner).approve(pool.address, ethers.utils.parseUnits('10000', 26));
   await pool.connect(owner).supply(ethers.utils.parseUnits('10000', 6));
   await glp.connect(u1).approve(vaultManager.address, ethers.utils.parseUnits('10000', 26));
 

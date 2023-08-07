@@ -214,7 +214,7 @@ contract VaultManager is IVaultManager, Allowed {
 
     // Vault functions
     function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
-     external override blockCheck hfCheck whenNotPaused returns (bool) {
+     external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
@@ -239,7 +239,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _leverage,
         uint256 _expShares,
         uint256 _slippage
-    ) external override hfCheck returns (bool) {
+    ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         require(
             _leverage >= vaultCore.getMinLeverage() &&
                 _leverage <= vaultCore.getMaxLeverage(),
@@ -265,7 +265,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _leverage,
         uint256 _repayAmount,
         uint256 _slippage
-    ) external override blockCheck hfCheck returns (bool) {
+    ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
         uint256 paid = _deleverageForUser(_user, _leverage);
         if (slipped(_repayAmount, paid, _slippage))
@@ -307,7 +307,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _shares,
         uint256 _expTokens,
         uint256 _slippage
-    ) external override blockCheck hfCheck returns (bool) {
+    ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
         uint256 redeemed = _withdrawForUser(_user, _shares);
         if (slipped(_expTokens, redeemed, _slippage))

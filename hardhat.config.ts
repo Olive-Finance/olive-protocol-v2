@@ -90,7 +90,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   console.log("Strategy: ", strategy.address);
 
   const GLPMock = await ethers.getContractFactory("GLPMock");
-  const glpMock = await GLPMock.deploy();
+  const glpMock = await GLPMock.deploy(glp.address);
   await glpMock.deployed();
   console.log("GLPMock: ", glpMock.address);
 
@@ -105,13 +105,15 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await glpVault.setVaultManager(vaultManager.address);
   await glpVault.setTreasury(owner.address);
   await glpVault.setLendingPool(pool.address);
-  await glpVault.setLeverage(utils.parseUnits("1", 18), utils.parseUnits("5", 18));
+  await glpVault.setLeverage(utils.parseUnits("5", 18));
   await glpVault.setPriceHelper(phMock.address);
   await glpVault.setTokens(glp.address, oGLP.address, soGLP.address);
   await glpVault.setStrategy(strategy.address);
   await oGLP.grantRole(glpVault.address);
   await aUSDC.grantRole(pool.address);
   await doUSDC.grantRole(pool.address);
+  await pool.grantRole(vaultManager.address);
+  await glp.grantRole(glpMock.address);
 
 
   await glp.mint(u1.address, ethers.utils.parseUnits('10000', 18));

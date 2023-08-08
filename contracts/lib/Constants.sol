@@ -8,6 +8,13 @@ library Constants {
     uint256 constant MAX_INT = type(uint256).max;
     uint256 constant HUNDRED_PERCENT = 100e18; //100
 
+    // Thresholds
+    uint256 constant LIQUIDATION_THRESHOLD = 0.9e18;
+    uint256 constant LIQUIDATION_THRESHOLD_LIMIT = 0.5e18;
+
+    // Leverage
+    uint256 constant MAX_LEVERAGE_LIMIT = 10e18;
+
     // Limits 
     uint256 constant MAX_PERFORMANCE_FEE = 20e18; 
     uint256 constant MAX_MANAGEMENT_FEE = 5e18;

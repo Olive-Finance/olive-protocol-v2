@@ -29,5 +29,6 @@ interface IVaultCore {
     function priceOfAsset() external view returns (uint256);
 
     // Asset value 
-    function getTokenValueInAsset(address token, uint256 _amount) external view returns (uint256);
+    function getTokenValueInAsset(address _token, uint256 _tokenValue) external view returns (uint256);
+    function getTokenValueforAsset(address _token, uint256 _tokenValue) external view returns (uint256);
 }

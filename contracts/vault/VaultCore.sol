@@ -35,8 +35,8 @@ abstract contract VaultCore is IVaultCore, Allowed {
 
     // Vault parameters
     uint256 public MAX_LEVERAGE;
-    uint256 public MIN_LEVERAGE;
-    uint256 public LIQUIDATION_THRESHOLD;
+    uint256 public MIN_LEVERAGE = Constants.PINT; // Always fixed at 1e18
+    uint256 public LIQUIDATION_THRESHOLD = Constants.LIQUIDATION_THRESHOLD;
     uint256 public HF_THRESHOLD = Constants.PINT;
 
     // Empty constructor - all the values will be set by setter functions
@@ -79,10 +79,14 @@ abstract contract VaultCore is IVaultCore, Allowed {
         treasury = _treasury;
     }
 
-    function setLeverage(uint256 _minLeverage, uint256 _maxLeverage) external onlyOwner {
-        require(_maxLeverage > _minLeverage, "VC: Invalid leverage");
-        MIN_LEVERAGE = _minLeverage;
+    function setLeverage(uint256 _maxLeverage) external onlyOwner {
+        require(_maxLeverage > MIN_LEVERAGE && _maxLeverage <= Constants.MAX_LEVERAGE_LIMIT, "VC: Invalid leverage");
         MAX_LEVERAGE = _maxLeverage;
+    }
+
+    function setLiquidationThreshold(uint256 _lqThreshold) external onlyOwner {
+        require(_lqThreshold >= Constants.LIQUIDATION_THRESHOLD_LIMIT, "VC: Invalid liquidation threshold");
+        LIQUIDATION_THRESHOLD = _lqThreshold;
     }
 
     function setTokens(

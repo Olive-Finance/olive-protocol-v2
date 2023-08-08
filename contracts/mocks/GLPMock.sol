@@ -4,6 +4,9 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IMintable} from "../interfaces/IMintable.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+
+import "hardhat/console.sol";
 
 interface RewardsRouter {
     function mintAndStakeGlp(address _token, uint256 _amount, uint256 _minUsdg, uint256 _minGlp) external returns (uint256); 
@@ -18,6 +21,11 @@ contract GLPMock is GLPManager, RewardsRouter {
     IERC20 public glp;
     uint256 public priceOfGLP;
     
+    constructor(address _glp) {
+        priceOfGLP = 1e30;
+        glp = IERC20(_glp);
+    }
+
     function getPrice(bool) external view override returns (uint256) {
         return priceOfGLP;
     }
@@ -34,7 +42,8 @@ contract GLPMock is GLPManager, RewardsRouter {
     ) external override returns (uint256) {
         IERC20 token = IERC20(_token);
         token.transferFrom(msg.sender, address(this), _amount);
-        IMintable(address(glp)).mint(msg.sender, (_amount*995)/1000);
+        IMintable(address(glp)).mint(msg.sender, (_amount*995*1e12)/1000);
+        return (_amount*995*1e12)/1000;
     }
 
     function unstakeAndRedeemGlp(
@@ -45,7 +54,8 @@ contract GLPMock is GLPManager, RewardsRouter {
     ) external override returns (uint256) {
         IERC20 token = IERC20(_tokenOut);
         glp.transferFrom(msg.sender, address(this), _glpAmount);
-        IMintable(address(glp)).burn(msg.sender, _glpAmount);
-        token.transfer(msg.sender, (_glpAmount*995)/1000);
+        IMintable(address(glp)).burn(address(this), _glpAmount);
+        token.transfer(msg.sender, (_glpAmount*995)/(1000*1e12));
+        return (_glpAmount*995)/(1000*1e12);
     }
 }

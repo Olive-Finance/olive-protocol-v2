@@ -31,7 +31,7 @@ async function main() {
     const rcl = await RCL.attach('0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9');
 
     // Lending pools and grant roles for a and do tokens
-    const LPUSDC = await ethers.getContractFactory("Pool");
+    const LPUSDC = await ethers.getContractFactory("LendingPool");
     const lpUSDC = await LPUSDC.attach('0x5FC8d32690cc91D4c39d9d3abcBD16989F875707');
     await aUSDC.grantRole(lpUSDC.address);
     await doUSDC.grantRole(lpUSDC.address);
@@ -48,8 +48,10 @@ async function main() {
     const vaultManager = await VaultManager.attach('0x8A791620dd6260079BF849Dc5567aDC3F2FdC318');
     
     // Call the deposit with leverage
-    await vaultManager.connect(u1).deposit(ethers.utils.parseUnits('100', 18), ethers.utils.parseUnits('1', 18), 0, 0);
+    await vaultManager.connect(u1).deposit(ethers.utils.parseUnits('100', 18), ethers.utils.parseUnits('2', 18), 0, 0);
     await vaultManager.hf(u1.address);
+    await vaultManager.connect(u1).leverage(ethers.utils.parseUnits('5', 18), 0, 0);
+    await vaultManager.connect(owner).closePosition(u1.address);
 }
 
 main().catch((error) => {

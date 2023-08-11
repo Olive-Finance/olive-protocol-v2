@@ -33,7 +33,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         _;
     }
 
-    function setVaultCore(address _vaultCore) external {
+    function setVaultCore(address _vaultCore) external onlyOwner {
         require(
             _vaultCore != address(0) && _vaultCore != address(this),
             "VK: Invalid core"
@@ -41,7 +41,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultCore = IVaultCore(_vaultCore);
     }
 
-    function setVaultManager(address _vaultManager) external {
+    function setVaultManager(address _vaultManager) external onlyOwner {
         require(
             _vaultManager != address(0) && _vaultManager != address(this),
             "VK: Invalid core"
@@ -49,7 +49,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultManager = IVaultManager(_vaultManager);
     }
 
-    function setKeeperFee(uint256 _keeperRate) external {
+    function setKeeperFee(uint256 _keeperRate) external onlyGov {
         require(Constants.MAX_KEEPER_RATE > _keeperRate, "VK: Invalid keeper rate");
         keeperRate = _keeperRate;
     }

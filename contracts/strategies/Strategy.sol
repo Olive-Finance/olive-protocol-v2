@@ -94,6 +94,7 @@ contract Strategy is IStrategy, Allowed {
         require(sToken.balanceOf(_user) >= _shares, "STR: Insufficient balance");
         IMintable(address(sToken)).burn(_user, _shares);
         uint amount = getAmount(_shares);
+        assetBalance -= amount;
         asset.transfer(_user, amount);
         return amount;
     }

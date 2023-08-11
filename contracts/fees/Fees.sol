@@ -17,6 +17,8 @@ contract Fees is IFees, Allowed, Governable {
     // percentages
     uint256 pFee;
     uint256 mFee;
+    uint256 keeperFee;
+    uint256 liqFee;
 
     // Empty constructor
     constructor() Allowed(msg.sender) Governable(msg.sender) {}
@@ -32,6 +34,13 @@ contract Fees is IFees, Allowed, Governable {
     function getTreasury() external view override onlyOwner returns (address) {
         return treasury;
     }
+    function getKeeperFee() external view returns (uint256) {
+        return keeperFee;
+    }
+
+    function getLiquidationFee() external view returns (uint256) {
+        return liqFee;
+    }
 
     function setTreasury(address _treasury) external override onlyGov {
         require(_treasury != address(0), "FEE: Invalid treasury address");
@@ -46,5 +55,13 @@ contract Fees is IFees, Allowed, Governable {
     function setMFee(uint256 _mFee) external override onlyGov {
         require(_mFee <= Constants.MAX_MANAGEMENT_FEE, "FEE: Invalid management fee");
         mFee = _mFee;
+    }
+
+    function setKeeperFee(uint256 _keeperFee) external onlyGov {
+        keeperFee = _keeperFee;
+    }
+
+    function setLiquidationFee(uint256 _liquidationFee) external onlyGov {
+        liqFee = _liquidationFee;
     }
 }

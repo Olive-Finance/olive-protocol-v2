@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {Constants} from "../../lib/Constants.sol";
 import {IPriceHelper} from "../../helper/interfaces/IPriceHelper.sol";
+import {ILendingPool} from "../../pools/interfaces/ILendingPool.sol";
 
 import {VaultCore} from "../VaultCore.sol";
 
@@ -65,7 +66,7 @@ contract GLPVault is VaultCore {
         return (GLPManager(glpManager).getPrice(true) * Constants.PINT) / GLP_PRICE_PRECISION;
     }
 
-    function getTokenValueInAsset(address _token, uint256 _tokenValue) external view override returns (uint256) {
+    function getTokenValueInAsset(address _token, uint256 _tokenValue) public view override returns (uint256) {
         if (_tokenValue == 0) {
             return 0;
         }
@@ -79,5 +80,32 @@ contract GLPVault is VaultCore {
         }
         uint8 decimalDiff =  IERC20Metadata(address(asset)).decimals() - IERC20Metadata(_token).decimals();
         return (_assetValue * priceOfAsset()) / (priceHelper.getPriceOf(_token) * (10**decimalDiff));
+    }
+
+    function getPosition(address _user) public view override returns (uint256) {
+        require(_user != address(0), "VM: Invalid address");
+        return (oToken.balanceOf(_user) * pps) / Constants.PINT;
+    }
+
+    function getDebt(address _user) public view override returns (uint256) {
+        require(_user != address(0), "VM: Invalid address");
+        ILendingPool pool = ILendingPool(lendingPool);
+        return getTokenValueInAsset(pool.wantToken(), pool.getDebt(_user));
+    }
+
+    function getCollateral(address _user) external view override returns (uint256) {
+        return getPosition(_user) - getDebt(_user);
+    }
+
+    function hf(address _user) public view override returns (uint256) {
+        uint256 debt = getDebt(_user);
+        if (debt == 0) {
+            return Constants.MAX_INT;
+        }
+        return (getPosition(_user) * LIQUIDATION_THRESHOLD) / debt;
+    }
+
+    function isHealthy(address _user) external view override returns (bool) {
+        return hf(_user) >= HF_THRESHOLD;
     }
 }

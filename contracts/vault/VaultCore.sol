@@ -109,6 +109,7 @@ abstract contract VaultCore is IVaultCore, Allowed {
         pps = _pps;
     }
 
+
     // Vault view functions
     function getPPS() external view override returns (uint256) {
         return pps;

@@ -5,7 +5,7 @@ pragma solidity ^0.8.17;
 
 interface IRewards{
     // Functions
-    function notifyReward(address _token, uint256 _amount) external;
+    function notifyReward(address _token, uint256 _amount, uint256 _fee) external;
     function convertTo(address _from, address _to) external returns (uint256);
     function exchangeTo(address _token, uint256 _rShares) external ;
     function exchange(uint256 _rShares) external;

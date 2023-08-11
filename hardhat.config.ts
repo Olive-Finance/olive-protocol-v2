@@ -85,7 +85,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   console.log("VaultManager: ", vaultManager.address);
 
   const Strategy = await ethers.getContractFactory("Strategy");
-  const strategy = await Strategy.deploy(glp.address, soGLP.address, owner.address);
+  const strategy = await Strategy.deploy(glp.address, soGLP.address);
   await strategy.deployed();
   console.log("Strategy: ", strategy.address);
 

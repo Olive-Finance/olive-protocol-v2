@@ -34,13 +34,6 @@ interface IVaultManager {
     function withdraw(uint256 _shares, uint256 _expTokens, uint256 slip) external returns (bool);
 
     /**
-     * Function to close the position 
-     * All assets will be transferred back to user
-     * All open debt / leverage positions will be closed
-     */
-    function closePosition(address _user) external returns (bool);
-
-    /**
      * A view function to get the list of withdrawable shares
      */
     function getBurnableShares(address _user) external view returns (uint256);
@@ -51,7 +44,19 @@ interface IVaultManager {
     function getLeverage(address _user) external view returns (uint256);
 
     /**
-     * Health factor
+     * Function to get the balance of the assets deployed to strategy by vault
      */
-    function hf(address _user) external view returns (uint256);
+    function balanceOf() external view returns (uint256);
+
+    /**
+     * Function to get the total supply of lendger token
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * Function to close the position 
+     * All assets will be transferred back to user
+     * All open debt / leverage positions will be closed
+     */
+    // function closePosition(address _user) external returns (bool);
 }

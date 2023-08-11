@@ -13,7 +13,7 @@ import {IVaultManager} from "./interfaces/IVaultManager.sol";
 import {IVaultCore} from "./interfaces/IVaultCore.sol";
 
 contract VaultManager is IVaultManager, Allowed {
-    IVaultCore vaultCore;
+    IVaultCore public vaultCore;
 
     // Struct to store the txn block number
     mapping(address => uint256) public userTxnBlockStore;
@@ -28,10 +28,7 @@ contract VaultManager is IVaultManager, Allowed {
     modifier blockCheck() {
         address caller = msg.sender;
         if (!allowedTxtor[caller]) {
-            require(
-                userTxnBlockStore[caller] != block.number,
-                "VM: Txn not allowed"
-            );
+            require(userTxnBlockStore[caller] != block.number, "VM: Txn not allowed");
         }
         _;
     }
@@ -40,10 +37,7 @@ contract VaultManager is IVaultManager, Allowed {
     modifier hfCheck() {
         address caller = msg.sender;
         _;
-        require(
-            hf(caller) > vaultCore.getHFThreshold(),
-            "VM: Degarded HF, Liquidation risk"
-        );
+        require(vaultCore.isHealthy(caller), "VM: Degarded HF, Liquidation risk");
     }
 
     function setVaultCore(address _vaultCore) external {
@@ -54,30 +48,9 @@ contract VaultManager is IVaultManager, Allowed {
         vaultCore = IVaultCore(_vaultCore);
     }
 
-    function getPosValueInAsset(address _user) public view returns (uint256) {
-        require(_user != address(0), "VM: Invalid address");
-        IERC20 oToken = IERC20(vaultCore.getLedgerToken());
-        return (oToken.balanceOf(_user) * vaultCore.getPPS()) / Constants.PINT;
-    }
-
-    function getDebtValueInAsset(address _user) public view returns (uint256) {
-        require(_user != address(0), "VM: Invalid address");
-        ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
-        return vaultCore.getTokenValueInAsset(pool.wantToken(), pool.getDebt(_user));
-    }
-
-    function hf(address _user) public view override returns (uint256) {
-        uint256 debt = getDebtValueInAsset(_user);
-        uint256 posValue = getPosValueInAsset(_user);
-        if (debt == 0) {
-            return Constants.MAX_INT;
-        }
-        return (posValue * vaultCore.getLiquidationThreshold()) / debt;
-    }
-
     function getLeverage(address _user) public view override returns (uint256) {
-        uint256 posValue = getPosValueInAsset(_user);
-        uint256 debt = getDebtValueInAsset(_user);
+        uint256 posValue = vaultCore.getPosition(_user);
+        uint256 debt = vaultCore.getDebt(_user);
         if (debt == 0) {
             return vaultCore.getMinLeverage();
         }
@@ -90,33 +63,32 @@ contract VaultManager is IVaultManager, Allowed {
         return (posValue * Constants.PINT) / collateral;
     }
 
-    function balanceOf() public view returns (uint256) {
+    function balanceOf() public view override returns (uint256) {
         return IStrategy(vaultCore.getStrategy()).balanceOf(address(this));
     }
 
-    function totalSupply() public view returns (uint256) {
+    function totalSupply() public view override returns (uint256) {
         return IERC20(vaultCore.getLedgerToken()).totalSupply();
     }
 
     function getBurnableShares(address _user) external view override returns (uint256) {
-        uint256 debt = getDebtValueInAsset(_user);
-        uint256 posValue = getPosValueInAsset(_user);
+        uint256 debt = vaultCore.getDebt(_user);
+        uint256 position = vaultCore.getPosition(_user);
 
         uint256 userLeverage = getLeverage(_user);
-        uint256 userHF = hf(_user);
 
         if (userLeverage >= vaultCore.getMaxLeverage()) {
             return 0;
         }
-        if (userHF <= vaultCore.getHFThreshold()) {
+        if (!vaultCore.isHealthy(_user)) {
             return 0;
         }
         uint256 c1 = (debt * Constants.PINT) /
             vaultCore.getLiquidationThreshold();
-        uint256 c2 = (debt * vaultCore.getMinLeverage()) /
+        uint256 c2 = (debt * vaultCore.getMaxLeverage()) /
             (vaultCore.getMaxLeverage() - Constants.PINT);
         c1 = c1 > c2 ? c1 : c2;
-        return posValue - c1;
+        return position - c1;
     }
 
     // Internal functions
@@ -144,10 +116,7 @@ contract VaultManager is IVaultManager, Allowed {
     }
 
     function _repay(address _user, uint256 _amount) internal returns (uint256) {
-
-        ILendingPool(vaultCore.getLendingPool()).repay(
-            address(vaultCore), _user, _amount
-        );
+        ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), _user, _amount);
         return _amount;
     }
 
@@ -171,15 +140,6 @@ contract VaultManager is IVaultManager, Allowed {
         return vaultCore.buy(want, borrowed);
     }
 
-    // Call post harvest and compound
-    function setPricePerShare() internal {
-        uint256 pps = Constants.PINT;
-        if (totalSupply() != 0) {
-            pps = (balanceOf() * Constants.PINT) / totalSupply();
-        }
-        vaultCore.setPPS(pps);
-    }
-
     // Vault functions
     function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
      external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
@@ -187,7 +147,7 @@ contract VaultManager is IVaultManager, Allowed {
             "VM: Invalid leverage value"
         );
         address _user = msg.sender;
-        uint256 totalCollateral = getPosValueInAsset(_user) - getDebtValueInAsset(_user) + _amount;
+        uint256 totalCollateral = vaultCore.getCollateral(_user) + _amount;
         uint256 debt = ((_leverage - getLeverage(_user)) * totalCollateral) / Constants.PINT;
         uint256 bought = 0;
 
@@ -210,13 +170,12 @@ contract VaultManager is IVaultManager, Allowed {
             "VM: Invalid leverage value"
         );
         address _user = msg.sender;
-        uint256 collateral = getPosValueInAsset(_user) - getDebtValueInAsset(_user);
-        uint256 bought = _borrowNBuy(_user, ((_leverage - getLeverage(_user)) * collateral) / Constants.PINT);
+        uint256 debt = ((_leverage - getLeverage(_user)) * vaultCore.getCollateral(_user)) / Constants.PINT ;
+        uint256 bought = _borrowNBuy(_user, debt);
         _deploy(bought);
         uint256 minted = _mint(_user, bought);
 
-        if (slipped(_expShares, minted, _slippage))
-            revert("VM: Position slipped");
+        if (slipped(_expShares, minted, _slippage)) revert("VM: Position slipped");
         return true;
     }
 
@@ -244,8 +203,7 @@ contract VaultManager is IVaultManager, Allowed {
 
         uint256 _userLeverage = getLeverage(_user);
         require(_leverage < _userLeverage, "VM: Invalid leverage");
-        uint256 collateral = getPosValueInAsset(_user) - getDebtValueInAsset(_user);
-        uint256 _shares = ((_userLeverage - _leverage) * collateral) / vaultCore.getPPS();
+        uint256 _shares = ((_userLeverage - _leverage) * vaultCore.getCollateral(_user)) / vaultCore.getPPS();
         vaultCore.burnShares(_user, _shares);
         uint256 sold = vaultCore.sell(ILendingPool(vaultCore.getLendingPool()).wantToken(), _redeem(_shares));
 
@@ -259,8 +217,7 @@ contract VaultManager is IVaultManager, Allowed {
     ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
         uint256 redeemed = _withdrawForUser(_user, _shares);
-        if (slipped(_expTokens, redeemed, _slippage))
-            revert("VM: Postion slipped");
+        if (slipped(_expTokens, redeemed, _slippage)) revert("VM: Postion slipped");
         return true;
     }
 
@@ -277,12 +234,5 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 value = _redeem(_shares);
         vaultCore.transferAsset(_user, value);
         return value;
-    }
-
-    function closePosition(address _user) external override onlyOwner returns (bool) {
-        _deleverageForUser(_user, vaultCore.getMinLeverage());
-        uint256 remainingShares = this.getBurnableShares(_user);
-        _withdrawForUser(_user, remainingShares);
-        return true;
     }
 }

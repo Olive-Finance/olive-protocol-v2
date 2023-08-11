@@ -63,13 +63,13 @@ contract Rewards is IRewards, Allowed {
         return result;
     }
 
-    function notifyReward(address _token, uint256 _amount) external override onlyAllowed whenNotPaused nonReentrant {
+    function notifyReward(address _token, uint256 _amount, uint256 _fee) external override onlyAllowed whenNotPaused nonReentrant {
         require(_token != address(0) && _amount > 0, "RWDS: Invalid");
         require((IERC20(_token).balanceOf(address(this)) - balances[_token]) >= _amount, "RWDS: No tokens");
         uint256 toMint = (_amount * priceHelper.getPriceOf(_token)) / Constants.PINT;
         balances[_token] += _amount;
-        orToken.mint(fees.getTreasury(), (toMint * fees.getPFee())/Constants.PINT);
-        orToken.mint(msg.sender, (toMint * (Constants.HUNDRED_PERCENT - fees.getPFee()))/Constants.PINT);
+        orToken.mint(fees.getTreasury(), (toMint * _fee)/Constants.PINT);
+        orToken.mint(msg.sender, (toMint * (Constants.HUNDRED_PERCENT - _fee))/Constants.PINT);
         emit Reward(msg.sender, _token, _amount);
     }
 

@@ -31,4 +31,12 @@ interface IVaultCore {
     // Asset value 
     function getTokenValueInAsset(address _token, uint256 _tokenValue) external view returns (uint256);
     function getTokenValueforAsset(address _token, uint256 _tokenValue) external view returns (uint256);
+
+    // The values are always given in terms of Asset
+    function getPosition(address _user) external view returns (uint256);
+    function getDebt(address _user) external view returns (uint256);
+    function getCollateral(address _user) external view returns (uint256);
+
+    function hf(address _user) external view returns (uint256);
+    function isHealthy(address _user) external view returns (bool);
 }

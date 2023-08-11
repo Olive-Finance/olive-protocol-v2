@@ -49,9 +49,8 @@ async function main() {
     
     // Call the deposit with leverage
     await vaultManager.connect(u1).deposit(ethers.utils.parseUnits('100', 18), ethers.utils.parseUnits('2', 18), 0, 0);
-    await vaultManager.hf(u1.address);
+    await glpCore.hf(u1.address);
     await vaultManager.connect(u1).leverage(ethers.utils.parseUnits('5', 18), 0, 0);
-    await vaultManager.connect(owner).closePosition(u1.address);
 }
 
 main().catch((error) => {

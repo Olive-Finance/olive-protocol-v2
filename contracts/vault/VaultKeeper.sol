@@ -14,6 +14,8 @@ import {ILendingPool} from "../pools/interfaces/ILendingPool.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
 import {IVaultKeeper} from "../vault/interfaces/IVaultKeeper.sol";
 
+// Keeper to liquidator
+// Penality on the debt - 10%
 contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     IVaultCore public vaultCore;
     IVaultManager public vaultManager;
@@ -86,7 +88,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     function liquidation(address _user) external override onlyKeeper {
         require(!vaultCore.isHealthy(_user), "VK: Position is healthy");
         // find and close the debt
-        // of the remaining balance transfer 8% to caller and 2% to treasury, 90% back to treasury
+        // of the remaining balance transfer 8% to caller and 2% to treasury, 90% back to user
         uint256 debt = vaultCore.getDebt(_user);
         uint256 position = vaultCore.getPosition(_user);
 

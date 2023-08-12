@@ -2,6 +2,7 @@ import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
 import { utils } from "ethers";
+import { vault } from "./typechain-types/contracts";
 require("hardhat-contract-sizer");
 const fs = require("fs");
 
@@ -101,7 +102,6 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
 
   await vaultManager.setVaultCore(glpVault.address);
   await glpVault.setRewardsRouter(glpMock.address);
-  await glpVault.setGLPManager(glpMock.address);
   await glpVault.setVaultManager(vaultManager.address);
   await glpVault.setTreasury(owner.address);
   await glpVault.setLendingPool(pool.address);
@@ -121,9 +121,23 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await usdc.connect(owner).approve(pool.address, ethers.utils.parseUnits('10000', 26));
   await pool.connect(owner).supply(ethers.utils.parseUnits('10000', 6));
   await glp.connect(u1).approve(vaultManager.address, ethers.utils.parseUnits('10000', 26));
+  await strategy.connect(owner).setHandler(glpVault.address, vaultManager.address, true);
 
   // Write file
   fs.writeFileSync('./.wallet', owner.address);
+
+  // Mainnet testing contract addresses
+  // https://arbiscan.io/address/0xb95db5b167d75e6d04227cfffa61069348d271f5
+  // 0xB95DB5B167D75e6d04227CfFFA61069348d271F5 - RewardsRouter - For buying
+  // 0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1 - RewardsRouter - For rewards
+  // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8 - Bridge USDC
+  // 0x6aCC55166BFAF187ca752F2739b9965A13Ce1B70 - glpVault Address
+  // 0x3963FfC9dff443c2A94f21b129D429891E32ec18 - glpManager
+  // 0x1aDDD80E6039594eE970E5872D247bf0414C8903 - fsGLP
+  // 0x5402B5F40310bDED796c7D0F3FF6683f5C0cFfdf - sGLP / GLP
+  // 0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258 - GLP
+  // 0xE6d40c6f8E9C22178961776ca9a18ED075714Bf9 - Strategy
+  // 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1 - wETH
 });
 
 const config: HardhatUserConfig = {

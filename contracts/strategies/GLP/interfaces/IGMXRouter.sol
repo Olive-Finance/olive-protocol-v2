@@ -2,40 +2,22 @@
 
 pragma solidity ^0.8.17;
 
-interface IGMXRouter {
-    function stakeGmx(uint256 amount) external;
-
-    function unstakeGmx(uint256 amount) external;
-
+interface IClaimRouter {
     function compound() external;
 
     function claimFees() external;
+}
 
-    function mintAndStakeGlp(
-        address _token,
-        uint256 _amount,
-        uint256 _minUsdg,
-        uint256 _minGlp
+interface IGLPRouter {
+     function mintAndStakeGlp(address _token, uint256 _amount, uint256 _minUsdg, uint256 _minGlp
     ) external returns (uint256);
 
-    function unstakeAndRedeemGlp(
-        address _tokenOut,
-        uint256 _glpAmount,
-        uint256 _minOut,
-        address _receiver
+    function unstakeAndRedeemGlp(address _tokenOut, uint256 _glpAmount, uint256 _minOut, address _receiver
     ) external returns (uint256);
-
-    function feeGlpTracker() external view returns (address);
-
-    function feeGmxTracker() external view returns (address);
-
-    function stakedGmxTracker() external view returns (address);
 
     function glpManager() external view returns (address);
+}
 
-    function glp() external view returns (address);
-
-    // have to see if this is needed
-    function signalTransfer(address _receiver) external;
-    function acceptTransfer(address _sender) external;
+interface IGLPManager {
+    function getPrice(bool) external view returns (uint256);   
 }

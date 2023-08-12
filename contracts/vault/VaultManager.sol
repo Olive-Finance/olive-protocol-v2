@@ -6,7 +6,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Allowed} from "../utils/Allowed.sol";
 import {Constants} from "../lib/Constants.sol";
 
-import {IAssetManager} from '../strategies/interfaces/IAssetManager.sol';
 import {ILendingPool} from "../pools/interfaces/ILendingPool.sol";
 import {IStrategy} from '../strategies/interfaces/IStrategy.sol';
 import {IVaultManager} from "./interfaces/IVaultManager.sol";
@@ -91,12 +90,12 @@ contract VaultManager is IVaultManager, Allowed {
         return position - c1;
     }
 
-    // Internal functions
+    // Internal functions 
     function slipped (
         uint256 _expected,
         uint256 _actual,
         uint256 _tolarance
-    ) internal view returns (bool) {
+    ) internal pure returns (bool) {
         return
             !(_actual >=
                 (_expected * (Constants.PINT - _tolarance)) / Constants.PINT);
@@ -120,7 +119,7 @@ contract VaultManager is IVaultManager, Allowed {
         return _amount;
     }
 
-    function _deploy(uint256 _amount) internal returns (uint256) {
+    function _deploy(uint256 _amount) internal {
         require(_amount > 0, "VM: Invalid amount for deploy");
         vaultCore.transferToStrategy(_amount);
         IStrategy(vaultCore.getStrategy()).deposit(address(vaultCore), _amount);
@@ -143,51 +142,39 @@ contract VaultManager is IVaultManager, Allowed {
     // Vault functions
     function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
      external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
-        require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
+        return _deposit(msg.sender, _amount, _leverage, _expShares, _slippage);
+    }
+
+    function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage)  // Why do we need this function - does it really help - merge with deposit 0
+     external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
+        return _deposit(msg.sender, 0, _leverage, _expShares, _slippage);
+    }
+
+    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) internal returns (bool) {
+        require(_leverage >= getLeverage(_user) && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
-        address _user = msg.sender;
-        uint256 totalCollateral = vaultCore.getCollateral(_user) + _amount;
-        uint256 debt = ((_leverage - getLeverage(_user)) * totalCollateral) / Constants.PINT;
-        uint256 bought = 0;
-
+        uint256 collateral = vaultCore.getCollateral(_user);
+        uint256 scaledLeverage = (getLeverage(_user) * collateral) / (collateral + _amount);
+        uint256 debt = ((_leverage - scaledLeverage) * (collateral + _amount)) / Constants.PINT; 
+        uint256 bought;
         IERC20(vaultCore.getAssetToken()).transferFrom(_user, address(vaultCore), _amount);
         if (debt > 0) {
             bought = _borrowNBuy(_user, debt);
         }
         _deploy(bought + _amount);
         uint256 minted = _mint(_user, bought + _amount);
-
-        if (slipped(_expShares, minted, _slippage)) revert("VM: Position slipped");
-        return true;
-    }
-
-    function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage) 
-     external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
-        require(
-            _leverage >= vaultCore.getMinLeverage() &&
-                _leverage <= vaultCore.getMaxLeverage(),
-            "VM: Invalid leverage value"
-        );
-        address _user = msg.sender;
-        uint256 debt = ((_leverage - getLeverage(_user)) * vaultCore.getCollateral(_user)) / Constants.PINT ;
-        uint256 bought = _borrowNBuy(_user, debt);
-        _deploy(bought);
-        uint256 minted = _mint(_user, bought);
-
-        if (slipped(_expShares, minted, _slippage)) revert("VM: Position slipped");
-        return true;
+        require(!slipped(_expShares, minted, _slippage), "VM: Position slipped"); 
     }
 
     function deleverage(
         uint256 _leverage,
         uint256 _repayAmount,
         uint256 _slippage
-    ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
+    ) external override whenNotPaused nonReentrant blockCheck returns (bool) {
         address _user = msg.sender;
         uint256 paid = _deleverageForUser(_user, _leverage);
-        if (slipped(_repayAmount, paid, _slippage))
-            revert("VM: Postion slipped");
+        require(!slipped(_repayAmount, paid, _slippage), "VM: Postion slipped");
         return true;
     }
 
@@ -217,7 +204,7 @@ contract VaultManager is IVaultManager, Allowed {
     ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
         uint256 redeemed = _withdrawForUser(_user, _shares);
-        if (slipped(_expTokens, redeemed, _slippage)) revert("VM: Postion slipped");
+        require(!slipped(_expTokens, redeemed, _slippage), "VM: Postion slipped");
         return true;
     }
 

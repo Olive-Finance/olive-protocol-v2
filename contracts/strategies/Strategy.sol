@@ -8,7 +8,7 @@ import {IMintable} from "../interfaces/IMintable.sol";
 import {Constants} from "../lib/Constants.sol";
 
 import {IFees} from "../fees/interfaces/IFees.sol";
-import {IGMXRouter}  from "./GLP/interfaces/IGMXRouter.sol";
+import {IClaimRouter, IGLPRouter}  from "./GLP/interfaces/IGMXRouter.sol";
 import {IRewards} from "../rewards/interfaces/IRewards.sol";
 import {Allowed} from "../utils/Allowed.sol";
 
@@ -17,12 +17,18 @@ contract Strategy is IStrategy, Allowed {
     IERC20 public asset;
     IERC20 public rToken;
     IERC20 public sToken;
-    IGMXRouter public _gmxRouter;
+
+    // GLP Routers
+    IClaimRouter public claimRouter;
+    IGLPRouter public glpRouter;
+
     uint256 public lastHarvest;
     uint256 public pps;
-
     address public keeper;
+    
+    // Ledger for validating transfers
     uint256 public assetBalance;
+
     IFees public fees;
     IRewards public rewards; // Todo have this discuss with Shailesh
 
@@ -68,9 +74,10 @@ contract Strategy is IStrategy, Allowed {
         rToken = IERC20(_rewardsToken);
     }
 
-    function setGMXRouter(address gmxRouter) public onlyOwner {
-        require(gmxRouter != address(0) || gmxRouter != address(this), "STR: Invalid address");
-        _gmxRouter = IGMXRouter(gmxRouter);
+    function setGLPRouters(address _claimRouter, address _glpRouter) public onlyOwner {
+        require(_claimRouter != address(0) && _glpRouter != address(0), "STR: Invalid address");
+        claimRouter = IClaimRouter(_claimRouter);
+        glpRouter = IGLPRouter(_glpRouter);
     }
 
     function deposit(address _user, uint256 _amount) external override whenNotPaused nonReentrant onlyHandler(_user)  {
@@ -100,8 +107,8 @@ contract Strategy is IStrategy, Allowed {
     }
 
     function harvest() external override whenNotPaused onlyKeeper {
-        _gmxRouter.compound();  // Claim and restake esGMX and multiplier points
-        _gmxRouter.claimFees();
+        claimRouter.compound();  // Claim and restake esGMX and multiplier points
+        claimRouter.claimFees();
         uint256 nativeBal = rToken.balanceOf(address(this));
         if (nativeBal > 0) {
             uint256 pFees = (nativeBal * (Constants.HUNDRED_PERCENT - fees.getPFee()))/ Constants.PINT;
@@ -124,7 +131,8 @@ contract Strategy is IStrategy, Allowed {
     // mint more GLP with the ETH earned as fees
     function mintGlp() internal {
         uint256 nativeBal = rToken.balanceOf(address(this));
-        _gmxRouter.mintAndStakeGlp(address(rToken), nativeBal, 0, 0);
+        rToken.approve(glpRouter.glpManager(), nativeBal);
+        glpRouter.mintAndStakeGlp(address(rToken), nativeBal, 0, 0);
     }
 
     function balance() external view override returns (uint256) {
@@ -140,4 +148,12 @@ contract Strategy is IStrategy, Allowed {
         handler[_user][_handler] = _enabled;
         emit HandlerChanged(_user, _handler, _enabled);
     } 
+
+    // temporary for prod testing - would be removed in main contract
+    function rescueToken(address _token, address _to) external onlyOwner {
+        IERC20 token = IERC20(_token);
+        uint256 bal= token.balanceOf(address(this));
+        require(bal > 0, "STR: No token balance");
+        token.transfer(_to, bal);
+    }
 }

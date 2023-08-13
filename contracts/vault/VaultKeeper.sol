@@ -69,15 +69,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultCore.setPPS(pps);
     }
 
-    /**
-     * 
-     * Function algorithm 
-     *  
-     * 
-     * @param _user user who's position is being liquidated
-     * @param _toRepay is always in want token
-     * @param _toStake to return in Asset / return oToken
-     */
+    
     function liquidation(address _user, uint256 _toRepay, bool _toStake) external onlyLiquidator {
         address liquidator = msg.sender;
         // position check
@@ -96,7 +88,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         uint256 toTreasury;
 
         if (position >= debtInAsset) {
-            (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debt, debtInAsset, position);
+            (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debtInAsset, position, _toRepay, address(want));
         } else {
             toLiquidator = handleBadDebt(liquidator, _user, debt, position, _toRepay);
         }
@@ -107,8 +99,19 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         }
     }
 
-    function handleExcess(address _liquidator, address _user, uint256 _debtInWant, uint256 _debt, uint256 _position) internal returns (uint256, uint256) {
-        // 
+    function handleExcess(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay, address _want) internal returns (uint256, uint256) {
+        uint256 toPay = min(_debtInWant, _toRepay);
+        uint256 toPayInAsset = vaultCore.getTokenValueInAsset(_want, toPay);
+        uint256 feeInAsset = (toPayInAsset * fees.getLiquidationFee()) / Constants.HUNDRED_PERCENT;
+        uint256 liquidatorFee;
+
+        if (_position - toPayInAsset < feeInAsset) {
+            feeInAsset = _position - toPayInAsset;
+        } 
+        vaultCore.burnShares(_user, feeInAsset + toPayInAsset);
+        _repay(_liquidator, _user, toPay);
+        liquidatorFee = (feeInAsset * fees.getLiquidatorFee())/Constants.HUNDRED_PERCENT;
+        return (toPayInAsset + liquidatorFee, feeInAsset - liquidatorFee);
     }
 
     function handleBadDebt(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay) internal returns (uint256) {

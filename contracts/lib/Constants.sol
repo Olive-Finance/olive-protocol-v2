@@ -34,8 +34,11 @@ library Constants {
     uint256 constant HOLDING_FEE = 1.5e18; //1.5%
     uint256 constant REDEMPTION_FEE = 0.5e18; //0.5%
     uint256 constant KEEPER_RATE = 1e18; //1%
-    uint256 constant MAX_KEEPER_RATE = 5e18; //5%
-    uint256 constant MAX_TREASURY_FEE = 30e18; //30% 
+
+    uint256 constant MAX_LIQUIDATION_FEE = 10e18; //10% 
+    uint256 constant MAX_LIQUIDATOR_FEE = 50e18; //50% of Liquidation fee
+    
+    uint256 constant MAX_TREASURY_FEE = 30e18; //30%  // is computed based on
 
     // Supply constants
     uint256 constant OLIVE_MAX_SUPPLY = 100_000_000 * 1e18;

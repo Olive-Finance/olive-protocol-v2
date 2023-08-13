@@ -19,19 +19,16 @@ import {IVaultKeeper} from "../vault/interfaces/IVaultKeeper.sol";
 contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     IVaultCore public vaultCore;
     IVaultManager public vaultManager;
-    uint256 public keeperRate;
     IFees public fees;
 
     // Allowed keepers
-    mapping(address => bool) public keepers;
+    mapping(address => bool) public liquidators;
 
     // Empty constructor
-    constructor() Allowed(msg.sender) Governable(msg.sender) {
-        keeperRate = Constants.MAX_KEEPER_RATE;
-    }
+    constructor() Allowed(msg.sender) Governable(msg.sender) {}
 
-    modifier onlyKeeper() {
-        require(keepers[msg.sender], "VK: Not authorised");
+    modifier onlyLiquidator() {
+        require(liquidators[msg.sender], "VK: Not authorised");
         _;
     }
 
@@ -51,14 +48,10 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultManager = IVaultManager(_vaultManager);
     }
 
-    function setKeeperFee(uint256 _keeperRate) external onlyGov {
-        require(Constants.MAX_KEEPER_RATE > _keeperRate, "VK: Invalid keeper rate");
-        keeperRate = _keeperRate;
-    }
-
-    function setKeeper(address _keeper, bool toActivate) external onlyGov {
-        require(_keeper != address(0), "VK: Invalid keeper");
-        keepers[msg.sender] = toActivate;
+    function setLiquidator(address _liquidator, bool toActivate) external onlyGov {
+        require(_liquidator != address(0), "VK: Invalid keeper");
+        liquidators[msg.sender] = toActivate;
+        emit LiquidatorChanged(_liquidator, toActivate, block.timestamp);
     }
 
     function harvest() external override {
@@ -76,33 +69,72 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultCore.setPPS(pps);
     }
 
-    function _sellNRepay(address _user, uint256 _debt) internal returns (uint256) {
-        uint256 _shares = _debt / vaultCore.getPPS();
-        vaultCore.burnShares(_user, _shares);
-        uint256 withdrawn = IStrategy(vaultCore.getStrategy()).withdraw(address(vaultCore), _shares);
-        uint256 sold = vaultCore.sell(ILendingPool(vaultCore.getLendingPool()).wantToken(), withdrawn);
-        ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), _user, sold);
-        return sold;
+    /**
+     * 
+     * Function algorithm 
+     *  
+     * 
+     * @param _user user who's position is being liquidated
+     * @param _toRepay is always in want token
+     * @param _toStake to return in Asset / return oToken
+     */
+    function liquidation(address _user, uint256 _toRepay, bool _toStake) external onlyLiquidator {
+        address liquidator = msg.sender;
+        // position check
+        require(!vaultCore.isHealthy(_user), "VK: Position is healthy");
+
+        // pool transfer check
+        ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
+        IERC20 want = IERC20(pool.wantToken());
+        require(want.allowance(liquidator, address(pool)) >= _toRepay, "VK: Insufficient allowance to pool");
+        
+        // Getting the debt in want
+        uint256 debt = pool.getDebt(_user);
+
+        uint256 debtInAsset = vaultCore.getDebt(_user);
+        uint256 position = vaultCore.getPosition(_user);
+        uint256 toLiquidator;
+        uint256 toTreasury;
+
+        if (position >= debtInAsset) {
+            (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debt, debtInAsset, position);
+        } else {
+            toLiquidator = handleBadDebt(liquidator, _user, debt, position, _toRepay);
+        }
+
+        _transfer(liquidator, toLiquidator, _toStake);
+        if (toTreasury > 0) {
+            _transfer(fees.getTreasury(), toTreasury, true);
+        }
     }
 
-    function liquidation(address _user) external override onlyKeeper {
-        require(!vaultCore.isHealthy(_user), "VK: Position is healthy");
-        // find and close the debt
-        // of the remaining balance transfer 8% to caller and 2% to treasury, 90% back to user
-        uint256 debt = vaultCore.getDebt(_user);
-        uint256 position = vaultCore.getPosition(_user);
+    function handleExcess(address _liquidator, address _user, uint256 _debtInWant, uint256 _debt, uint256 _position) internal returns (uint256, uint256) {
+        // 
+    }
 
-        uint256 toRepay = position > debt ? debt : position;
-        _sellNRepay(_user, toRepay);
-        if (position <= debt) return; //bad case
+    function handleBadDebt(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay) internal returns (uint256) {
+        uint256 toPay = min(_debtInWant, _toRepay);
+        uint256 toTransfer = (_position * toPay) / _debtInWant;
+        vaultCore.burnShares(_user, toTransfer);
+        _repay(_liquidator, _user, toPay);
+        return toTransfer;
+    }
 
-        uint256 totalFees = (position * (fees.getKeeperFee()+fees.getLiquidationFee()))/Constants.HUNDRED_PERCENT;
-        vaultCore.burnShares(_user, totalFees);
-        if(msg.sender == fees.getTreasury()) {
-            vaultCore.mintShares(fees.getTreasury(), totalFees);
-        } else {
-            vaultCore.mintShares(fees.getTreasury(), (position * fees.getLiquidationFee())/Constants.HUNDRED_PERCENT);
-            vaultCore.mintShares(msg.sender, (position * fees.getKeeperFee())/Constants.HUNDRED_PERCENT);
+    function _transfer(address _liquidator, uint256 _shares, bool _toStake) internal {
+        if (_toStake) {
+            vaultCore.mintShares(_liquidator, _shares);
+            return;
         }
+        uint256 sold = IStrategy(vaultCore.getStrategy()).withdraw(address(vaultCore), _shares);
+        vaultCore.transferAsset(_liquidator, sold);
+    }
+
+    function _repay(address _liquidator, address _user, uint256 _amount) internal {
+        ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
+        pool.repay(_liquidator, _user, _amount);
+    }
+
+    function min(uint256 x, uint256 y) internal returns (uint256) {
+        return x>y?y:x;
     }
 }

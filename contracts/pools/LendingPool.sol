@@ -94,11 +94,11 @@ contract LendingPool is ILendingPool, Allowed {
     }
 
     function borrow(
-        address _vault,
+        address _to,
         address _user,
         uint256 _amount // Want token
     ) external override onlyAllowed returns (uint256) {
-        require(_vault != address(0), "POL: Null address");
+        require(_to != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
@@ -112,7 +112,7 @@ contract LendingPool is ILendingPool, Allowed {
         doToken.mint(_user, scaledBalance);
 
         IERC20 want = reserve._want;
-        want.transfer(_vault, _amount);
+        want.transfer(_to, _amount);
 
         return _amount;
     }
@@ -161,7 +161,7 @@ contract LendingPool is ILendingPool, Allowed {
     }
 
     function repay(
-        address _vault,
+        address _from,
         address _user,
         uint256 _amount // Want token
     ) external override returns (bool) {
@@ -173,7 +173,7 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 burnableShares = (_amount * Constants.PINT) / reserve._borrowIndex ;
 
         IERC20 want = reserve._want;
-        want.transferFrom(_vault, address(this), _amount);
+        want.transferFrom(_from, address(this), _amount);
 
         IERC20 dToken = reserve._dToken;
         IMintable doToken = IMintable(address(dToken));

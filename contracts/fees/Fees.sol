@@ -15,10 +15,11 @@ contract Fees is IFees, Allowed, Governable {
     address public treasury;
 
     // percentages
-    uint256 pFee;
-    uint256 mFee;
-    uint256 keeperFee;
-    uint256 liqFee;
+    uint256 public pFee;
+    uint256 public mFee;
+    uint256 public keeperFee;
+    uint256 public liquidationFee;
+    uint256 public liquidatorFee;
 
     // Empty constructor
     constructor() Allowed(msg.sender) Governable(msg.sender) {}
@@ -31,18 +32,23 @@ contract Fees is IFees, Allowed, Governable {
         return mFee;
     }
 
-    function getTreasury() external view override onlyOwner returns (address) {
+    function getTreasury() external view override returns (address) {
         return treasury;
     }
-    function getKeeperFee() external view returns (uint256) {
-        return keeperFee;
+
+    function getLiquidationFee() external view override returns (uint256) {
+        return liquidationFee;
     }
 
-    function getLiquidationFee() external view returns (uint256) {
-        return liqFee;
+    function getLiquidatorFee() external view override returns (uint256) {
+        return liquidatorFee;
     }
 
-    function setTreasury(address _treasury) external override onlyGov {
+    function getLiquidationTreasuryFee() external view override returns (uint256) {
+        return (Constants.HUNDRED_PERCENT - liquidatorFee);
+    }
+
+    function setTreasury(address _treasury) external override onlyOwner {
         require(_treasury != address(0), "FEE: Invalid treasury address");
         treasury = _treasury;
     }
@@ -57,11 +63,12 @@ contract Fees is IFees, Allowed, Governable {
         mFee = _mFee;
     }
 
-    function setKeeperFee(uint256 _keeperFee) external onlyGov {
-        keeperFee = _keeperFee;
+    function setLiquidationFee(uint256 _liquidationFee) external override onlyGov {
+        liquidationFee = _liquidationFee;
     }
 
-    function setLiquidationFee(uint256 _liquidationFee) external onlyGov {
-        liqFee = _liquidationFee;
+    function setLiquidatorFee(uint256 _liquidatorFee) external override onlyGov {
+        require(Constants.HUNDRED_PERCENT >= _liquidatorFee, "FEE: Invalid liquidator fee");
+        liquidatorFee = _liquidatorFee;
     }
 }

@@ -90,7 +90,6 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         
         // Getting the debt in want
         uint256 debt = pool.getDebt(_user);
-
         uint256 debtInAsset = vaultCore.getDebt(_user);
         uint256 position = vaultCore.getPosition(_user);
         uint256 toLiquidator;

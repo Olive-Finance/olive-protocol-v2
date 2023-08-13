@@ -12,11 +12,11 @@ contract esOLIVE is ERC20Votes, Governable {
     mapping(address => bool) public esOLIVEMinter;
     IRewardManager public oliveMgr;
 
-    uint256 maxMinted = Constants.ESOLIVE_MAX_SUPPLY;
+    uint256 maxMinted = Constants.ESOLIVE_MAX_EMISSION;
     uint256 public totalMinted;
 
     constructor(address _oliveMgr) ERC20Permit("esOLIVE") 
-    ERC20("Escrow Meta Token", "esOLV") Governable(msg.sender){
+    ERC20("Escrow Olive Token", "esOLIVE") Governable(msg.sender){
         oliveMgr = IRewardManager(_oliveMgr);
     }
     

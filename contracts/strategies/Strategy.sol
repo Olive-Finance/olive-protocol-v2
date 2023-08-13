@@ -80,7 +80,7 @@ contract Strategy is IStrategy, Allowed {
         glpRouter = IGLPRouter(_glpRouter);
     }
 
-    function deposit(address _user, uint256 _amount) external override whenNotPaused nonReentrant onlyHandler(_user)  {
+    function deposit(address _user, uint256 _amount) external override whenNotPaused nonReentrant onlyAllowed onlyHandler(_user)   {
         require(_amount > 0, "STR: Zero/Negative amount");
         require(asset.balanceOf(address(this)) - assetBalance >= _amount, "STR: No token transfer");
         assetBalance += _amount;
@@ -96,11 +96,11 @@ contract Strategy is IStrategy, Allowed {
         return (_shares * pps)/Constants.PINT;
     }
 
-    function withdraw(address _user, uint256 _shares) external override whenNotPaused nonReentrant onlyHandler(_user) returns (uint256) {
+    function withdraw(address _user, uint256 _shares) external override whenNotPaused nonReentrant onlyAllowed onlyHandler(_user) returns (uint256) {
         require(_shares > 0, "STR: Zero/Negative amount");
         require(sToken.balanceOf(_user) >= _shares, "STR: Insufficient balance");
         IMintable(address(sToken)).burn(_user, _shares);
-        uint amount = getAmount(_shares);
+        uint256 amount = getAmount(_shares);
         assetBalance -= amount;
         asset.transfer(_user, amount);
         return amount;

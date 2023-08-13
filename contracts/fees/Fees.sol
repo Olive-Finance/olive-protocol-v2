@@ -64,6 +64,7 @@ contract Fees is IFees, Allowed, Governable {
     }
 
     function setLiquidationFee(uint256 _liquidationFee) external override onlyGov {
+        require(Constants.MAX_LIQUIDATION_FEE >= _liquidationFee, "FEE: Invalid liquidation fee");
         liquidationFee = _liquidationFee;
     }
 

@@ -4,9 +4,9 @@ pragma solidity ^0.8.17;
 
 import {IRateCalculator} from './interfaces/IRateCalculator.sol';
 import {Constants} from '../lib/Constants.sol';
-import {Allowed} from '../utils/Allowed.sol';
+import {Governable} from "../utils/Governable.sol";
 
-contract RateCalculator is IRateCalculator, Allowed {
+contract RateCalculator is IRateCalculator, Governable {
     
     // Slopes for each of the interests
     uint256 public _r0;
@@ -19,7 +19,7 @@ contract RateCalculator is IRateCalculator, Allowed {
     // constant do define the year in seconds
     uint256 constant YEAR_IN_SECONDS = 365 days;
 
-    constructor(uint256 r0, uint256 r1, uint256 r2, uint256 uo) Allowed(msg.sender) {
+    constructor(uint256 r0, uint256 r1, uint256 r2, uint256 uo) Governable(msg.sender) {
         _r0 = r0;
         _r1 = r1;
         _r2 = r2;
@@ -27,14 +27,14 @@ contract RateCalculator is IRateCalculator, Allowed {
     }
 
     // Restrictred setter functions
-    function setSlopes(uint256 r0, uint256 r1, uint256 r2) public onlyAllowed returns (bool) {
+    function setSlopes(uint256 r0, uint256 r1, uint256 r2) public onlyGov returns (bool) {
         _r0 = r0;
         _r1 = r1;
         _r2 = r2;
         return true;
     }
 
-    function setUOpt(uint256 uo) public onlyAllowed returns (bool) {
+    function setUOpt(uint256 uo) public onlyGov returns (bool) {
         _uo = uo;
         return true;
     }

@@ -68,7 +68,7 @@ library Reserve {
         uint256 reserveLastUpdated = reserve._lastUpdatedTimestamp;
 
         // update liquidity index
-        uint256 si = rcl.simpleInterest(reserve._supplyRate, uint256(reserveLastUpdated), currentTimestamp);
+        uint256 si = rcl.simpleInterest(reserve._supplyRate, reserveLastUpdated, currentTimestamp);
         reserve._supplyIndex = (si * reserve._supplyIndex) / Constants.PINT;
 
         
@@ -80,7 +80,7 @@ library Reserve {
         }
 
         // update timestamp
-        reserve._lastUpdatedTimestamp = uint40(currentTimestamp);
+        reserve._lastUpdatedTimestamp = currentTimestamp;
     }
 
     function getNormalizedIncome(ReserveData storage reserve) internal view returns (uint256) {

@@ -97,7 +97,7 @@ contract LendingPool is ILendingPool, Allowed {
         address _to,
         address _user,
         uint256 _amount // Want token
-    ) external override onlyAllowed returns (uint256) {
+    ) external override onlyAllowed whenNotPaused nonReentrant returns (uint256) {
         require(_to != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
@@ -119,7 +119,7 @@ contract LendingPool is ILendingPool, Allowed {
 
     function supply(
         uint256 _amount // Want token
-    ) external override returns (bool) {
+    ) external override whenNotPaused nonReentrant returns (bool) {
         address _user = msg.sender;
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
@@ -139,9 +139,8 @@ contract LendingPool is ILendingPool, Allowed {
         return true;
     }
 
-    function withdraw(uint256 _shares) external override returns (bool) {
+    function withdraw(uint256 _shares) external whenNotPaused nonReentrant override returns (bool) {
         address _user = msg.sender;
-        require(_user != address(0), "POL: Null address");
         require(_shares > 0, "POL: Zero/Negative amount");
         IERC20 aToken = reserve._aToken;
         require(_shares <= aToken.balanceOf(_user), "POL: Not enough shares");
@@ -164,7 +163,7 @@ contract LendingPool is ILendingPool, Allowed {
         address _from,
         address _user,
         uint256 _amount // Want token
-    ) external override returns (bool) {
+    ) external override whenNotPaused nonReentrant returns (bool) {
         require(_amount > 0, "POL: Zero/Negative amount");
         require(_user != address(0), "POL: Null address");
 

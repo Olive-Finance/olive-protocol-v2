@@ -24,8 +24,8 @@ contract OliveManager is IRewardManager, Allowed {
     mapping(address => uint) public lastWithdrawTime;
     mapping(address => uint8) public lastSlashRate;
 
-    uint256 public maxExitCycle;
-    uint256 public minExitCycle;
+    uint256 public maxVestingPeriod;
+    uint256 public minVestingPeriod;
 
     address public treasury;
     uint256 public unclaimedRewards;
@@ -33,14 +33,14 @@ contract OliveManager is IRewardManager, Allowed {
     // Constructor
     constructor() Allowed(msg.sender) {}
 
-    function setMinExitCycle(uint256 _minExitCycle) external onlyOwner {
-         require(_minExitCycle >= Constants.ONE_DAY, "Fund: Invalid min exit cycle");
-         minExitCycle = _minExitCycle;
+    function setMinVestingPeriod(uint256 _minVestingPeriod) external onlyOwner {
+         require(_minVestingPeriod >= Constants.ONE_DAY, "Fund: Invalid min vesting period");
+         minVestingPeriod = _minVestingPeriod;
     }
 
-    function setMaxExitCycle(uint256 _maxExitCycle) external onlyOwner {
-         require(_maxExitCycle >= minExitCycle, "Fund: Invalid max exit cycle");
-         maxExitCycle = _maxExitCycle;
+    function setMaxVestingPeriod(uint256 _maxVestingPeriod) external onlyOwner {
+         require(_maxVestingPeriod >= minVestingPeriod, "Fund: Invalid max vesting period");
+         maxVestingPeriod = _maxVestingPeriod;
     }
 
     function setTreasury(address _treasury) external onlyOwner {
@@ -77,7 +77,7 @@ contract OliveManager is IRewardManager, Allowed {
 
     function unstake(uint256 _amount, uint8 _timeInDays) external updateReward(msg.sender) {  
         address caller = msg.sender;
-        require(_timeInDays >= minExitCycle/Constants.ONE_DAY && _timeInDays <= maxExitCycle/Constants.ONE_DAY, "Fund: Invalid vesting days");
+        require(_timeInDays >= minVestingPeriod/Constants.ONE_DAY && _timeInDays <= maxVestingPeriod/Constants.ONE_DAY, "Fund: Invalid vesting days");
 
         esOlive.burn(caller, _amount);
         _withdraw(caller);
@@ -89,16 +89,16 @@ contract OliveManager is IRewardManager, Allowed {
         }
         uint8 nonSlashRate = getNonSlashRate(_timeInDays);
         total = (total  * nonSlashRate)/100;
-        uint256 timeToExit = _timeInDays * Constants.ONE_DAY;
+        uint256 timeToVest = _timeInDays * Constants.ONE_DAY;
         lastSlashRate[caller] = 100 - nonSlashRate;
-        unstakeRate[caller] = (total * Constants.PINT) / timeToExit;
-        time2fullRedemption[caller] = block.timestamp + timeToExit;
+        unstakeRate[caller] = (total * Constants.PINT) / timeToVest;
+        time2fullRedemption[caller] = block.timestamp + timeToVest;
     }
 
     function getNonSlashRate(uint8 timeInDays) internal view returns (uint8) {
-        uint256 minDays = minExitCycle / Constants.ONE_DAY;
-        uint256 slope = (50 * Constants.PINT * Constants.ONE_DAY ) / (maxExitCycle - minExitCycle); // Constants
-        uint256 result = 50 + ((timeInDays - minDays) * slope) / Constants.PINT;
+        uint256 minDays = minVestingPeriod / Constants.ONE_DAY;
+        uint256 slope = (Constants.FIFTY_DAYS * Constants.PINT * Constants.ONE_DAY ) / (maxVestingPeriod - minVestingPeriod); // Constants
+        uint256 result = Constants.FIFTY_DAYS + ((timeInDays - minDays) * slope) / Constants.PINT;
         return uint8(result) ;
     }
 
@@ -191,7 +191,7 @@ contract OliveManager is IRewardManager, Allowed {
 
     function withdrawToTreasury() external onlyOwner {
         require(unclaimedRewards > 0, "Fund: No unclaimed rewards");
-        rewardToken.transfer(treasury, unclaimedRewards);
         unclaimedRewards = 0;
+        rewardToken.transfer(treasury, unclaimedRewards);
     } 
 }

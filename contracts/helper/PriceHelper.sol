@@ -15,7 +15,7 @@ interface IFeed {
 contract PriceHelper is IPriceHelper, Governable {
     uint256 private constant GRACE_PERIOD_TIME = 3600;
 
-    //todo to check if this is valid for all feeds otherwise abstract this
+    //todo to check if this is valid for all feeds otherwise abstract this - decisions
     uint256 public constant PRICE_FEED_PRECISION = 10 ** 8; // Price feed precision 
 
     // All ERC20 Tokens would be read from here
@@ -34,7 +34,7 @@ contract PriceHelper is IPriceHelper, Governable {
 
     function setPriceFeed(address _token, address _feed) public onlyGov {
         require(_token != address(0) && _feed != address(0), "PHLP: Zero addresses");
-        require(_token != address(this) && _token != address(this), "PHLP: Invalid address");
+        require(_token != address(this) && _feed != address(this), "PHLP: Invalid address");
         feeds[_token] = _feed;
     }
 

@@ -4,6 +4,7 @@ pragma solidity ^0.8.17;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Allowed} from "../utils/Allowed.sol";
+import {IFees} from "../fees/interfaces/IFees.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {IRewardManager} from "../interfaces/IRewardManager.sol";
 
@@ -14,6 +15,7 @@ contract OliveManager is IRewardManager, Allowed {
     IMintable public esOlive;
     IMintable public olive;
     IERC20 public rewardToken;
+    IFees public fees;
     
     uint public rewardPerTokenStored;
 
@@ -27,7 +29,6 @@ contract OliveManager is IRewardManager, Allowed {
     uint256 public maxVestingPeriod;
     uint256 public minVestingPeriod;
 
-    address public treasury;
     uint256 public unclaimedRewards;
 
     // Constructor
@@ -43,9 +44,9 @@ contract OliveManager is IRewardManager, Allowed {
          maxVestingPeriod = _maxVestingPeriod;
     }
 
-    function setTreasury(address _treasury) external onlyOwner {
-        require(_treasury != address(0) && _treasury != address(this), "Fund: Invalid address");
-        treasury = _treasury;
+    function setFees(address _fees) external onlyOwner {
+        require(_fees != address(0), "Fund: Invalid address");
+        fees = IFees(_fees);
     } 
 
     function setRewardToken(address _rewardToken) external onlyOwner {
@@ -192,6 +193,6 @@ contract OliveManager is IRewardManager, Allowed {
     function withdrawToTreasury() external onlyOwner {
         require(unclaimedRewards > 0, "Fund: No unclaimed rewards");
         unclaimedRewards = 0;
-        rewardToken.transfer(treasury, unclaimedRewards);
+        rewardToken.transfer(fees.getTreasury(), unclaimedRewards);
     } 
 }

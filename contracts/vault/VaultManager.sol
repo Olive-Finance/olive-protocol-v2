@@ -166,9 +166,11 @@ contract VaultManager is IVaultManager, Allowed {
         if (debt > 0) {
             bought = _borrowNBuy(_user, debt);
         }
-        _deploy(bought + _amount);
-        uint256 minted = _mint(_user, bought + _amount);
+        uint256 toDeposit = bought + _amount;
+        _deploy(toDeposit);
+        uint256 minted = _mint(_user, toDeposit);
         require(!slipped(_expShares, minted, _slippage), "VM: Position slipped"); 
+        emit Deposit(address(this), _user, toDeposit);
     }
 
     function deleverage(
@@ -177,8 +179,10 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _slippage
     ) external override whenNotPaused nonReentrant blockCheck returns (bool) {
         address _user = msg.sender;
+        uint256 _userLeverage = getLeverage(_user);
         uint256 paid = _deleverageForUser(_user, _leverage);
         require(!slipped(_repayAmount, paid, _slippage), "VM: Postion slipped");
+        emit Leverage(address(this), _user, _userLeverage, _leverage);
         return true;
     }
 
@@ -197,7 +201,6 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _shares = ((_userLeverage - _leverage) * vaultCore.getCollateral(_user)) / vaultCore.getPPS();
         vaultCore.burnShares(_user, _shares);
         uint256 sold = vaultCore.sell(ILendingPool(vaultCore.getLendingPool()).wantToken(), _redeem(_shares));
-
         return _repay(_user, sold);
     }
 
@@ -209,6 +212,7 @@ contract VaultManager is IVaultManager, Allowed {
         address _user = msg.sender;
         uint256 redeemed = _withdrawForUser(_user, _shares);
         require(!slipped(_expTokens, redeemed, _slippage), "VM: Postion slipped");
+        emit Withdraw(address(this), _user, redeemed);
         return true;
     }
 

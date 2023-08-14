@@ -53,10 +53,8 @@ interface IVaultManager {
      */
     function totalSupply() external view returns (uint256);
 
-    /**
-     * Function to close the position 
-     * All assets will be transferred back to user
-     * All open debt / leverage positions will be closed
-     */
-    // function closePosition(address _user) external returns (bool);
+    /** Events */
+    event Deposit(address indexed _vault, address indexed _user, uint256 _amount);
+    event Withdraw(address indexed _vault, address indexed _user, uint256 _amount);
+    event Leverage(address indexed _vault, address indexed _user, uint256 fromLeverage, uint256 toLeverage);
 }

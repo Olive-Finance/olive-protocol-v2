@@ -14,8 +14,7 @@ import {ILendingPool} from "../pools/interfaces/ILendingPool.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
 import {IVaultKeeper} from "../vault/interfaces/IVaultKeeper.sol";
 
-// Keeper to liquidator
-// Penality on the debt - 10%
+
 contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     IVaultCore public vaultCore;
     IVaultManager public vaultManager;
@@ -55,6 +54,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     }
 
     function harvest() external override {
+        computeFees();
         IStrategy strategy = IStrategy(vaultCore.getStrategy());
         strategy.harvest();
         setPricePerShare();
@@ -64,12 +64,11 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     function setPricePerShare() internal {
         uint256 pps = Constants.PINT;
         if (vaultManager.totalSupply() != 0) {
-            pps = (vaultManager.balanceOf() * Constants.PINT) / vaultManager.totalSupply();
+            pps = (vaultManager.balance() * Constants.PINT) / vaultManager.totalSupply();
         }
         vaultCore.setPPS(pps);
     }
 
-    
     function liquidation(address _user, uint256 _toRepay, bool _toStake) external onlyLiquidator {
         address liquidator = msg.sender;
         // position check
@@ -127,6 +126,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
             vaultCore.mintShares(_liquidator, _shares);
             return;
         }
+        computeFees();
         uint256 sold = IStrategy(vaultCore.getStrategy()).withdraw(address(vaultCore), _shares);
         vaultCore.transferAsset(_liquidator, sold);
     }
@@ -138,5 +138,11 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
 
     function min(uint256 x, uint256 y) internal returns (uint256) {
         return x>y?y:x;
+    }
+
+    function computeFees() public {
+        uint256 newFee = (vaultManager.balance() * fees.getMFee() * 
+        (block.timestamp - fees.getLastUpdatedAt())) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
+        fees.setFee(fees.getAccumulatedFee() + newFee, block.timestamp);
     }
 }

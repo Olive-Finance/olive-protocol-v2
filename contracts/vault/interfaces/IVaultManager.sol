@@ -46,7 +46,7 @@ interface IVaultManager {
     /**
      * Function to get the balance of the assets deployed to strategy by vault
      */
-    function balanceOf() external view returns (uint256);
+    function balance() external view returns (uint256);
 
     /**
      * Function to get the total supply of lendger token

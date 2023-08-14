@@ -9,7 +9,8 @@ import {Constants} from "../lib/Constants.sol";
 
 import {IFees} from "../fees/interfaces/IFees.sol";
 import {IClaimRouter, IGLPRouter}  from "./GLP/interfaces/IGMXRouter.sol";
-import {IRewards} from "../rewards/interfaces/IRewards.sol";
+import {IRewardManager} from "../interfaces/IRewardManager.sol";
+import {IVaultCore} from "../vault/interfaces/IVaultCore.sol";
 import {Allowed} from "../utils/Allowed.sol";
 
 contract Strategy is IStrategy, Allowed {
@@ -30,7 +31,12 @@ contract Strategy is IStrategy, Allowed {
     uint256 public assetBalance;
 
     IFees public fees;
-    IRewards public rewards; // Todo have this discuss with Shailesh
+
+    // VaultCore for price conversions
+    IVaultCore public vaultCore;
+
+    // OliveManager
+    IRewardManager public oliveRewards;
 
     mapping (address => mapping(address => bool)) handler;
 
@@ -59,11 +65,6 @@ contract Strategy is IStrategy, Allowed {
         fees = IFees(_fees);
     }
 
-    function setRewards(address _rewards) public onlyOwner {
-        require(_rewards != address(0), "STR: Invalid rewards address");
-        rewards = IRewards(_rewards);
-    }
-
     function setKeeper(address _keeper) public onlyOwner {
         require(_keeper != address(0), "STR: Invalid keeper");
         keeper = _keeper;
@@ -78,6 +79,16 @@ contract Strategy is IStrategy, Allowed {
         require(_claimRouter != address(0) && _glpRouter != address(0), "STR: Invalid address");
         claimRouter = IClaimRouter(_claimRouter);
         glpRouter = IGLPRouter(_glpRouter);
+    }
+
+    function setVaultCore(address _vaultCore) public onlyOwner {
+        require(_vaultCore != address(0), "STR: Invalid vaultCore");
+        vaultCore = IVaultCore(vaultCore);
+    }
+
+    function setRewardManager(address _rewardManager) public onlyOwner {
+        require(_rewardManager != address(0), "STR: Invalid reward manager");
+        oliveRewards = IRewardManager(_rewardManager);
     }
 
     function deposit(address _user, uint256 _amount) external override whenNotPaused nonReentrant onlyAllowed onlyHandler(_user)   {
@@ -107,12 +118,11 @@ contract Strategy is IStrategy, Allowed {
     }
 
     function harvest() external override whenNotPaused onlyKeeper {
-        claimRouter.compound();  // Claim and restake esGMX and multiplier points
+        claimRouter.compound();  
         claimRouter.claimFees();
         uint256 nativeBal = rToken.balanceOf(address(this));
         if (nativeBal > 0) {
-            uint256 pFees = (nativeBal * (Constants.HUNDRED_PERCENT - fees.getPFee()))/ Constants.PINT;
-            chargeFees(pFees); 
+            chargeFees(nativeBal); 
             uint256 before = this.balance();
             mintGlp();
             emit Harvest(address(asset), address(this), this.balance() - before);
@@ -120,8 +130,28 @@ contract Strategy is IStrategy, Allowed {
         }
     }
 
-    function chargeFees(uint256 _amount) internal {
-        rToken.transfer(fees.getTreasury(), _amount);
+    function chargeFees(uint256 yield) internal {
+        uint256 pFees = (yield * fees.getPFee())/ Constants.PINT;
+        uint256 mFees = vaultCore.getTokenValueforAsset(address(rToken), fees.getAccumulatedFee());
+        uint256 toOliveHolders = (pFees * fees.getRewardRateForOliveHolders()) / Constants.HUNDRED_PERCENT;
+        uint256 feeLimit =  ((yield * 5)/10) - pFees;
+        if(feeLimit > pFees) {
+            chargeManagementFee(feeLimit, mFees);
+        }
+
+        rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);
+        rToken.transfer(address(oliveRewards), toOliveHolders);
+        oliveRewards.notifyRewardAmount(toOliveHolders);
+    }
+
+    function chargeManagementFee(uint256 _limit, uint256 _accruedFees) internal {
+        uint256 managementfee = _limit > _accruedFees ? _accruedFees: _limit;
+        rToken.transfer(fees.getTreasury(), managementfee);
+        if ( _limit > _accruedFees) {
+            fees.setFee(0, block.timestamp);
+            return;
+        } 
+        fees.setFee(fees.getAccumulatedFee()-vaultCore.getTokenValueInAsset(address(rToken), managementfee), block.timestamp);
     }
 
     function setPPS() internal {
@@ -130,9 +160,9 @@ contract Strategy is IStrategy, Allowed {
 
     // mint more GLP with the ETH earned as fees
     function mintGlp() internal {
-        uint256 nativeBal = rToken.balanceOf(address(this));
-        rToken.approve(glpRouter.glpManager(), nativeBal);
-        glpRouter.mintAndStakeGlp(address(rToken), nativeBal, 0, 0);
+        uint256 rewardBalance = rToken.balanceOf(address(this));
+        rToken.approve(glpRouter.glpManager(), rewardBalance);
+        glpRouter.mintAndStakeGlp(address(rToken), rewardBalance, 0, 0);
     }
 
     function balance() external view override returns (uint256) {

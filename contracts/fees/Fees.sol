@@ -21,6 +21,12 @@ contract Fees is IFees, Allowed, Governable {
     uint256 public liquidationFee;
     uint256 public liquidatorFee;
 
+    uint256 public lastUpdatedAt;
+    uint256 public accumulatedFee;
+
+    uint256 public rewardRateforOliveholders;
+    uint256 public yieldFeeLimit;
+
     // Empty constructor
     constructor() Allowed(msg.sender) Governable(msg.sender) {}
 
@@ -44,8 +50,24 @@ contract Fees is IFees, Allowed, Governable {
         return liquidatorFee;
     }
 
+    function getAccumulatedFee() external view override returns (uint256) {
+        return accumulatedFee;
+    }
+
+    function getLastUpdatedAt() external view override returns (uint256) {
+        return lastUpdatedAt;
+    }
+
     function getLiquidationTreasuryFee() external view override returns (uint256) {
         return (Constants.HUNDRED_PERCENT - liquidatorFee);
+    }
+
+    function getRewardRateForOliveHolders() external view override returns (uint256) {
+        return rewardRateforOliveholders;
+    }
+
+    function getYieldFeeLimit() external view override returns (uint256) {
+        return yieldFeeLimit;
     }
 
     function setTreasury(address _treasury) external override onlyOwner {
@@ -71,5 +93,21 @@ contract Fees is IFees, Allowed, Governable {
     function setLiquidatorFee(uint256 _liquidatorFee) external override onlyGov {
         require(Constants.HUNDRED_PERCENT >= _liquidatorFee, "FEE: Invalid liquidator fee");
         liquidatorFee = _liquidatorFee;
+    }
+
+    function setFee(uint256 _fee, uint256 _updatedAt) external override onlyAllowed {
+        require(lastUpdatedAt <= _updatedAt, "FEE: Backdated entry");
+        accumulatedFee = _fee;
+        lastUpdatedAt = _updatedAt;
+    }
+
+    function setRewardRateForOliveHolders(uint256 _rewardRate) external override onlyGov {
+        require(Constants.MAX_REWARD_RATE_FOR_OLIVE_HOLDERS >= _rewardRate , "FEE: Invalid olive reward rate");
+        rewardRateforOliveholders = _rewardRate;
+    }
+
+    function setYieldFeeLimit(uint256 _yieldFeeLimit) external override onlyGov {
+        require(Constants.YIELD_LIMIT_FOR_FEES >= _yieldFeeLimit, "FEE: Invalid limit");
+        yieldFeeLimit = _yieldFeeLimit;
     }
 }

@@ -22,6 +22,10 @@ library Constants {
     uint256 constant MAX_LIQUIDATION_FEE = 10e18; //10% 
     uint256 constant MAX_LIQUIDATOR_FEE = 50e18; //50% of Liquidation fee
 
+    uint256 constant MAX_REWARD_RATE_FOR_OLIVE_HOLDERS = 50e18; //50% of total performance fee
+
+    uint256 constant YIELD_LIMIT_FOR_FEES = 50e18; //% of yield which can be used for fees
+
     // Supply constants
     uint256 constant OLIVE_MAX_SUPPLY = 1000_000_000 * 1e18;
     uint256 constant ESOLIVE_MAX_EMISSION = 400_000_000 * 1e18;

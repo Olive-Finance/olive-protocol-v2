@@ -10,9 +10,11 @@ import {ILendingPool} from "../pools/interfaces/ILendingPool.sol";
 import {IStrategy} from '../strategies/interfaces/IStrategy.sol';
 import {IVaultManager} from "./interfaces/IVaultManager.sol";
 import {IVaultCore} from "./interfaces/IVaultCore.sol";
+import {IFees} from "../fees/interfaces/IFees.sol";
 
 contract VaultManager is IVaultManager, Allowed {
     IVaultCore public vaultCore;
+    IFees public fees;
 
     // Struct to store the txn block number
     mapping(address => uint256) public userTxnBlockStore;
@@ -62,7 +64,7 @@ contract VaultManager is IVaultManager, Allowed {
         return (posValue * Constants.PINT) / collateral;
     }
 
-    function balanceOf() public view override returns (uint256) {
+    function balance() public view override returns (uint256) {
         return IStrategy(vaultCore.getStrategy()).balanceOf(address(this));
     }
 
@@ -121,12 +123,14 @@ contract VaultManager is IVaultManager, Allowed {
 
     function _deploy(uint256 _amount) internal {
         require(_amount > 0, "VM: Invalid amount for deploy");
+        computeFees();
         vaultCore.transferToStrategy(_amount);
         IStrategy(vaultCore.getStrategy()).deposit(address(vaultCore), _amount);
     }
 
     function _redeem(uint256 _shares) internal returns (uint256) {
         require(_shares > 0, "VM: Invalid shares");
+        computeFees();
         return IStrategy(vaultCore.getStrategy()).withdraw(address(vaultCore), _shares);
     }
 
@@ -221,5 +225,11 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 value = _redeem(_shares);
         vaultCore.transferAsset(_user, value);
         return value;
+    }
+
+    function computeFees() public {
+        uint256 newFee = (balance() * fees.getMFee() * 
+        (block.timestamp - fees.getLastUpdatedAt())) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
+        fees.setFee(fees.getAccumulatedFee() + newFee, block.timestamp);
     }
 }

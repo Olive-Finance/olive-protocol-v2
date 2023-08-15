@@ -64,7 +64,7 @@ contract RateCalculator is IRateCalculator, Governable {
         return result;
     }
 
-    function compoundInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external view returns (uint256) {
+    function compoundInterest(uint256 _rate, uint256 _timeFrom, uint256 _timeTo) external pure returns (uint256) {
         require(_timeTo >= _timeFrom, "RCL: Invalid input data");
         uint256 exp = _timeTo - _timeFrom;
 

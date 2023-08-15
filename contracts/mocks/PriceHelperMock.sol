@@ -10,8 +10,4 @@ contract PriceHelperMock is IPriceHelper {
     ) external view override returns (uint256) {
         return 1e18;
     }
-
-    function getPriceOfRewardToken() external view override returns (uint256) {
-        return 1e18;
-    }
 }

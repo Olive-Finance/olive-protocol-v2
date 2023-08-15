@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {ILendingPool} from './interfaces/ILendingPool.sol';
 import {IRateCalculator} from './interfaces/IRateCalculator.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
+import {IFees} from "../fees/interfaces/IFees.sol";
 import {Allowed} from '../utils/Allowed.sol';
 
 import {Reserve} from './library/Reserve.sol';
@@ -16,6 +17,7 @@ contract LendingPool is ILendingPool, Allowed {
     using Reserve for Reserve.ReserveData;
 
     Reserve.ReserveData public reserve;
+    IFees public fees;
 
     constructor(
         address aToken,
@@ -74,6 +76,17 @@ contract LendingPool is ILendingPool, Allowed {
         return (reserve.getNormalizedIncome() * balance) / Constants.PINT;
     }
 
+    function setFees(address _fees) external onlyOwner {
+        require(_fees != address(0), "POL: Invalid fees address");
+        fees = IFees(fees);
+    }
+
+    function mintToTreasury(uint256 _amount) internal {
+        if (_amount <= 0) return ;
+        uint256 scaledAmount = (_amount * Constants.PINT) / reserve._supplyIndex;
+        IMintable(address(reserve._aToken)).mint(fees.getTreasury(), scaledAmount);
+    }
+
     // Internal repeated function
     function updateReserve(
         uint256 _supply,
@@ -81,7 +94,8 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 _borrow,
         uint256 _repay
     ) internal returns (bool) {
-        reserve.updateState();
+        uint256 toTreasury = reserve.updateState();
+        mintToTreasury(toTreasury);
         reserve.updateRates(
             _debt(),
             _available(),

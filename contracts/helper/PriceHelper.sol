@@ -10,18 +10,15 @@ import {Constants} from '../lib/Constants.sol';
 
 interface IFeed {
     function latestRoundData() external view returns (uint80, int256, uint256, uint256, uint80);
+    function decimals() external view returns (uint8);
 }
 
 contract PriceHelper is IPriceHelper, Governable {
     uint256 private constant GRACE_PERIOD_TIME = 3600;
 
-    //todo to check if this is valid for all feeds otherwise abstract this - decisions
-    uint256 public constant PRICE_FEED_PRECISION = 10 ** 8; // Price feed precision 
-
     // All ERC20 Tokens would be read from here
     mapping(address => address) public feeds;
     IFeed public sequencer;
-    address public oRewards;
 
     // Empty constructor
     constructor() Governable(msg.sender) {}
@@ -46,7 +43,7 @@ contract PriceHelper is IPriceHelper, Governable {
     }
 
     function getPriceOf(address _token) external view override returns (uint256) {
-        require(_token != address(0), "PHLP: Token not whitelisted");
+        require(_token != address(0), "PHLP: Invalid token");
         require(feeds[_token] != address(0), "PHLP: Token not whitelisted");
         require(isSequencerActive(), "PHLP: Sequencer inactive");
         return _getPriceOf(feeds[_token]);
@@ -59,10 +56,6 @@ contract PriceHelper is IPriceHelper, Governable {
         require(price > 0, "PHLP: Invalid chainlink price");
         require(updateTime > 0, "PHLP: Incomplete round");
         require(answeredInRound >= roundId, "PHLP: Stale price");
-        return (uint256(price) * Constants.PINT) / PRICE_FEED_PRECISION;
-    }
-
-    function getPriceOfRewardToken() external view override returns (uint256) {
-        return IRewards(oRewards).getPrice();
+        return (uint256(price) * Constants.PINT) / (10 ** IFeed(_feed).decimals());
     }
 }

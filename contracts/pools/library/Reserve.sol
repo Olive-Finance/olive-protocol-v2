@@ -62,25 +62,26 @@ library Reserve {
     /**
      * Update the state which is the supply and borrow indices
      */
-    function updateState(ReserveData storage reserve) internal {
+    function updateState(ReserveData storage reserve) internal returns (uint256) {
         uint256 currentTimestamp = block.timestamp;
         IRateCalculator rcl = reserve._rcl;
         uint256 reserveLastUpdated = reserve._lastUpdatedTimestamp;
 
         // update liquidity index
         uint256 si = rcl.simpleInterest(reserve._supplyRate, reserveLastUpdated, currentTimestamp);
+        uint256 totalPayable = (reserve._aToken.totalSupply() * (si - reserve._supplyIndex)) / Constants.PINT;
         reserve._supplyIndex = (si * reserve._supplyIndex) / Constants.PINT;
 
         
         // update borrow index
-        uint256 totalDebt = reserve._dToken.totalSupply();
-        if( totalDebt > 0) { // Don't have to compute borrow index as there is no borrow
-            uint256 ci = rcl.compoundInterest(reserve._borrowRate, reserveLastUpdated, currentTimestamp);
-            reserve._borrowIndex = (ci * reserve._borrowIndex) / Constants.PINT;
-        }
+        uint256 ci = rcl.compoundInterest(reserve._borrowRate, reserveLastUpdated, currentTimestamp);
+        uint256 totalIncome = (reserve._dToken.totalSupply() * (ci - reserve._borrowIndex)) / Constants.PINT;
+        reserve._borrowIndex = (ci * reserve._borrowIndex) / Constants.PINT;
 
         // update timestamp
         reserve._lastUpdatedTimestamp = currentTimestamp;
+
+        return totalIncome > totalPayable?(totalIncome-totalPayable):0;
     }
 
     function getNormalizedIncome(ReserveData storage reserve) internal view returns (uint256) {

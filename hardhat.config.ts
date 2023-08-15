@@ -128,16 +128,28 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
 
   // Mainnet testing contract addresses
   // https://arbiscan.io/address/0xb95db5b167d75e6d04227cfffa61069348d271f5
+
+  // Mainnet Token Addresses
+  // 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1 - wETH
+  // 0x1aDDD80E6039594eE970E5872D247bf0414C8903 - fsGLP
+  // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8 - Bridge USDC
+  // 0x5402B5F40310bDED796c7D0F3FF6683f5C0cFfdf - sGLP / GLP
+  
+  // GLP Contracts
   // 0xB95DB5B167D75e6d04227CfFFA61069348d271F5 - RewardsRouter - For buying
   // 0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1 - RewardsRouter - For rewards
-  // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8 - Bridge USDC
-  // 0x6aCC55166BFAF187ca752F2739b9965A13Ce1B70 - glpVault Address
   // 0x3963FfC9dff443c2A94f21b129D429891E32ec18 - glpManager
-  // 0x1aDDD80E6039594eE970E5872D247bf0414C8903 - fsGLP
-  // 0x5402B5F40310bDED796c7D0F3FF6683f5C0cFfdf - sGLP / GLP
-  // 0x4277f8F2c384827B5273592FF7CeBd9f2C1ac258 - GLP
+  
+  // Chainlink Addresses
+  // 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612 - ETH/USD Price Feed
+  // 0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3 - USDC/USC Price Feed
+  // 0xFdB631F5EE196F0ed6FAa767959853A9F217697D - Arb One sequencer
+  // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8 - ARB Sequencer
+
+  // Deployed OliveContracts
+  // 0x326dBD1595473ddE549d15D129b226382cf267Ac - PriceHelper
+  // 0x6aCC55166BFAF187ca752F2739b9965A13Ce1B70 - glpVault / VaultCore
   // 0xE6d40c6f8E9C22178961776ca9a18ED075714Bf9 - Strategy
-  // 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1 - wETH
 });
 
 const config: HardhatUserConfig = {

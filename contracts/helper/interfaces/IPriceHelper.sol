@@ -6,7 +6,4 @@ pragma solidity ^0.8.17;
 interface IPriceHelper {
     // Price of a token in USD
     function getPriceOf(address _token) external view returns (uint256);
-
-    // price of reward token in USD
-    function getPriceOfRewardToken() external view returns (uint256);
 }

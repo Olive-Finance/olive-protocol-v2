@@ -17,7 +17,7 @@ export async function deployLendingPool() {
     // Following are the asset tokens which each of the pools use
     // USDC
     const USDC = await ethers.getContractFactory("Token");
-    const usdc = await USDC.deploy('USDC Token', 'USDC');
+    const usdc = await USDC.deploy('USDC Token', 'USDC', 6);
     await usdc.deployed();
 
     //Debt Token for USDC

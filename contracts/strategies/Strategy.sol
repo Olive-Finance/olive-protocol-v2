@@ -128,6 +128,7 @@ contract Strategy is IStrategy, Allowed {
             emit Harvest(address(asset), address(this), this.balance() - before);
             lastHarvest = block.timestamp;
         }
+        setPPS();
     }
 
     function chargeFees(uint256 yield) internal {

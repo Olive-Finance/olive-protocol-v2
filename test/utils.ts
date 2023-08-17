@@ -13,6 +13,7 @@ export async function deployLendingPool() {
     const u1 = accounts[1];
     const u2 = accounts[2];
     const u3 = accounts[3];
+    const treasury = accounts[4];
 
     // Following are the asset tokens which each of the pools use
     // USDC
@@ -35,12 +36,18 @@ export async function deployLendingPool() {
     const rcl = await RCL.deploy(toN(0.03), toN(0.03), toN(0.03), toN(0.8));
     await rcl.deployed();
 
+    // Fees
+    const Fees = await ethers.getContractFactory("Fees");
+    const fees = await Fees.deploy();
+    await fees.deployed();
+
+
     // USDC Lending pool
     const LPUSDC = await ethers.getContractFactory("LendingPool");
     const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
     await pool.deployed();
 
-    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
+    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury};
 }
 
 export async function deployStategy() {
@@ -114,14 +121,18 @@ export async function deployOlive() {
 }
 
 export async function setupLendingPool() {
-    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool} = await loadFixture(deployLendingPool);
+    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury} = await loadFixture(deployLendingPool);
     await pool.grantRole(u1.address);
     await pool.grantRole(u2.address);
     await aUSDC.grantRole(pool.address);
     await doUSDC.grantRole(pool.address);
     
-    await usdc.connect(owner).mint(u1.address, toN(1e8));
+    await usdc.connect(owner).mint(u1.address, toN(2000));
     await usdc.connect(u1).approve(pool.address, toN(1e20));
     await usdc.connect(u2).approve(pool.address, toN(1e20));
+
+    await fees.setTreasury(treasury.address);
+    await pool.setFees(fees.address);
+
     return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
 }

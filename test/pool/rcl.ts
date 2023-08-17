@@ -8,7 +8,7 @@ describe ("Rate Calculator Tests", function(){
     describe("Basic checks", function(){
         it("set slopes - user has permissions", async function(){
             const {rcl, owner, u1} = await loadFixture(deployLendingPool);
-            await rcl.connect(owner).grantRole(u1.address);
+            await rcl.connect(owner).setGov(u1.address);
             await rcl.connect(u1).setSlopes(toN(0.04), toN(0.04), toN(0.04));
             expect(await rcl._r0()).to.equal(toN(0.04));
             expect(await rcl._r1()).to.equal(toN(0.04));
@@ -25,7 +25,7 @@ describe ("Rate Calculator Tests", function(){
 
         it("set uo - user has permissions", async function(){
             const {rcl, owner, u1} = await loadFixture(deployLendingPool);
-            await rcl.connect(owner).grantRole(u1.address);
+            await rcl.connect(owner).setGov(u1.address);
             await rcl.connect(u1).setUOpt(toN(0.04));
             expect(await rcl._uo()).to.equal(toN(0.04));
 

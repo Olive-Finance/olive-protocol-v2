@@ -2,16 +2,18 @@
 
 pragma solidity ^0.8.17;
 
-import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-import {ILendingPool} from './interfaces/ILendingPool.sol';
-import {IRateCalculator} from './interfaces/IRateCalculator.sol';
-import {IMintable} from '../interfaces/IMintable.sol';
+import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import {IRateCalculator} from "./interfaces/IRateCalculator.sol";
+import {IMintable} from "../interfaces/IMintable.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
-import {Allowed} from '../utils/Allowed.sol';
+import {Allowed} from "../utils/Allowed.sol";
 
-import {Reserve} from './library/Reserve.sol';
-import {Constants}  from '../lib/Constants.sol';
+import {Reserve} from "./library/Reserve.sol";
+import {Constants}  from "../lib/Constants.sol";
+
+import {console} from "hardhat/console.sol";
 
 contract LendingPool is ILendingPool, Allowed {
     using Reserve for Reserve.ReserveData;
@@ -78,7 +80,7 @@ contract LendingPool is ILendingPool, Allowed {
 
     function setFees(address _fees) external onlyOwner {
         require(_fees != address(0), "POL: Invalid fees address");
-        fees = IFees(fees);
+        fees = IFees(_fees);
     }
 
     function mintToTreasury(uint256 _amount) internal {
@@ -162,12 +164,16 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 value = (reserve.getNormalizedIncome() * _shares) / Constants.PINT ;
         updateReserve(uint256(0), value, uint256(0), uint256(0));
 
+        console.log(value/1e18);
+
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
         
         IMintable maToken = IMintable(address(aToken));
         maToken.burn(_user, _shares);
 
+
         IERC20 want = reserve._want;
+        console.log("want: ", wantAmount/1e18);
         want.transfer(_user, wantAmount);
 
         return true;

@@ -6,8 +6,6 @@ import {IERC20} from '@openzeppelin/contracts/interfaces/IERC20.sol';
 import {IRateCalculator} from './../interfaces/IRateCalculator.sol';
 import {Constants} from '../../lib/Constants.sol';
 
-import {console} from "hardhat/console.sol";
-
 library Reserve {
     struct ReserveData {
         // supply index for scaled balance of supply tokens
@@ -79,7 +77,7 @@ library Reserve {
         uint256 ci = rcl.compoundInterest(reserve._borrowRate, reserveLastUpdated, currentTimestamp);
         uint256 previous_borrowIndex = reserve._borrowIndex;
         reserve._borrowIndex = (ci * reserve._borrowIndex) / Constants.PINT;
-        
+
         uint256 totalIncome = (reserve._dToken.totalSupply() * (reserve._borrowIndex - previous_borrowIndex)) / Constants.PINT;
         // update timestamp
         reserve._lastUpdatedTimestamp = currentTimestamp;

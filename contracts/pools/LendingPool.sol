@@ -13,8 +13,6 @@ import {Allowed} from "../utils/Allowed.sol";
 import {Reserve} from "./library/Reserve.sol";
 import {Constants}  from "../lib/Constants.sol";
 
-import {console} from "hardhat/console.sol";
-
 contract LendingPool is ILendingPool, Allowed {
     using Reserve for Reserve.ReserveData;
 
@@ -164,16 +162,12 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 value = (reserve.getNormalizedIncome() * _shares) / Constants.PINT ;
         updateReserve(uint256(0), value, uint256(0), uint256(0));
 
-        console.log(value/1e18);
-
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
         
         IMintable maToken = IMintable(address(aToken));
         maToken.burn(_user, _shares);
 
-
         IERC20 want = reserve._want;
-        console.log("want: ", wantAmount/1e18);
         want.transfer(_user, wantAmount);
 
         return true;

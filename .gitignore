@@ -1,0 +1,39 @@
+# Files to ignore
+coverage.json
+
+# Folders to ignore
+node_modules
+cache
+artifacts
+
+# Hardhat files to ignore
+typechain
+typechain-types
+
+# lock files to ignore
+yarn.lock
+package-lock.json
+
+# env files to ignore
+.env
+
+# IDE files to ignore
+.idea
+.vscode
+.wallet
+
+# avoid committing compressed files
+.zip 
+
+# coverage files
+coverage
+
+# ignore file system things
+.DS_Store
+
+# ignore log files
+*.log
+
+
+
+

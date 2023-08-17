@@ -52,6 +52,11 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         liquidators[msg.sender] = toActivate;
         emit LiquidatorChanged(_liquidator, toActivate, block.timestamp);
     }
+    
+    function setFees(address _fees) external onlyOwner {
+        require(_fees != address(0) && _fees != address(this), "VM: Invalid fees");
+        fees = IFees(_fees);
+    }
 
     function harvest() external override {
         computeFees();

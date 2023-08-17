@@ -27,7 +27,14 @@ contract Fees is IFees, Allowed, Governable {
     uint256 public yieldFeeLimit;
 
     // Empty constructor
-    constructor() Allowed(msg.sender) Governable(msg.sender) {}
+    constructor() Allowed(msg.sender) Governable(msg.sender) {
+        pFee = Constants.PerformanceFee;
+        mFee = Constants.ManagementFee;
+        liquidationFee = Constants.LiquidationFee;
+        liquidatorFee = Constants.LiquidatorFee;
+        rewardRateforOliveholders = Constants.RewardToOLVHolders;
+        yieldFeeLimit = Constants.YieldFeeLimit;
+    }
 
     function getPFee() external view override returns (uint256) { 
         return pFee; 

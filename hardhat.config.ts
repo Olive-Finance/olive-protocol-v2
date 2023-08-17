@@ -41,14 +41,14 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   // Debt Ledger tokens
   //Debt Token for USDC
   const DOUSDC = await ethers.getContractFactory("DToken");
-  const doUSDC = await DOUSDC.deploy('DOUSDC Token', 'doUSDC');
+  const doUSDC = await DOUSDC.deploy('DOUSDC Token', 'doUSDC', 6);
   await doUSDC.deployed();
   console.log("doUSDC: ", doUSDC.address);
 
   // Fund Ledger tokens
   //Fund Token for USDC
   const AUSDC = await ethers.getContractFactory("AToken");
-  const aUSDC = await AUSDC.deploy('AUSDC Token', 'aUSDC');
+  const aUSDC = await AUSDC.deploy('AUSDC Token', 'aUSDC', 6);
   await aUSDC.deployed();
   console.log("aUSDC: ", aUSDC.address);
 
@@ -71,7 +71,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await oGLP.deployed();
   console.log("oGLP: ", oGLP.address);
 
-  const soGLP = await AUSDC.deploy('SOGLP Token', 'soGLP');
+  const soGLP = await AUSDC.deploy('SOGLP Token', 'soGLP', 18);
   await soGLP.deployed();
   console.log("soGLP: ", soGLP.address);
 

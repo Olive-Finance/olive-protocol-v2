@@ -103,6 +103,11 @@ contract VaultManager is IVaultManager, Allowed {
                 (_expected * (Constants.PINT - _tolarance)) / Constants.PINT);
     }
 
+    function setFees(address _fees) external onlyOwner {
+        require(_fees != address(0) && _fees != address(this), "VM: Invalid fees");
+        fees = IFees(_fees);
+    }
+
     function _borrow(address _user, uint256 _amount) internal returns (uint256) {
         require(_amount > 0, "VM: Invalid borrow amount");
         require(_user != address(0), "VM: Invalid user address");
@@ -159,8 +164,14 @@ contract VaultManager is IVaultManager, Allowed {
             "VM: Invalid leverage value"
         );
         uint256 collateral = vaultCore.getCollateral(_user);
-        uint256 scaledLeverage = (getLeverage(_user) * collateral) / (collateral + _amount);
+        uint256 scaledLeverage = getLeverage(_user);
+        if (collateral > 0) {
+            scaledLeverage = (getLeverage(_user) * collateral) / (collateral + _amount);
+        }
+        
         uint256 debt = ((_leverage - scaledLeverage) * (collateral + _amount)) / Constants.PINT; 
+
+        
         uint256 bought;
         IERC20(vaultCore.getAssetToken()).transferFrom(_user, address(vaultCore), _amount);
         if (debt > 0) {

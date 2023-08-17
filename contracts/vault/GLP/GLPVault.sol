@@ -11,8 +11,6 @@ import {IGLPRouter, IGLPManager} from "../../strategies/GLP/interfaces/IGMXRoute
 
 import {VaultCore} from "../VaultCore.sol";
 
-import "hardhat/console.sol";
-
 contract GLPVault is VaultCore {
     IGLPRouter public glpRouter;
     IPriceHelper public priceHelper;

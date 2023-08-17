@@ -54,4 +54,12 @@ library Constants {
 
     // Magic number definition
     uint256 constant FIFTY_DAYS = 50;
+
+    // Default fee values
+    uint256 constant ManagementFee = 2e18;
+    uint256 constant PerformanceFee = 10e18;
+    uint256 constant LiquidationFee = 5e18;
+    uint256 constant LiquidatorFee = 80e18;
+    uint256 constant RewardToOLVHolders = 20e18;
+    uint256 constant YieldFeeLimit = 30e18;
 }

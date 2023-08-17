@@ -8,10 +8,18 @@ import {IMintable} from '../interfaces/IMintable.sol';
 import {Allowed} from '../utils/Allowed.sol';
 
 contract AToken is ERC20, Allowed, IMintable {
+    uint8 precision = 18;
     constructor(
         string memory _name,
-        string memory _symbol
-    ) ERC20(_name, _symbol) Allowed(msg.sender) {}
+        string memory _symbol,
+        uint8 _precision
+    ) ERC20(_name, _symbol) Allowed(msg.sender) {
+        precision = _precision;
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return precision;
+    }
 
     function mint(
         address _user,

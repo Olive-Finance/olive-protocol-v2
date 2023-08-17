@@ -174,10 +174,10 @@ contract Strategy is IStrategy, Allowed {
         return getAmount(sToken.balanceOf(_user));
     }
 
-    function setHandler(address _user, address _handler, bool _enabled) external onlyOwner {
-        require(_user != address(0) && _handler != address(0), "STR: Invalid addresses");
-        handler[_user][_handler] = _enabled;
-        emit HandlerChanged(_user, _handler, _enabled);
+    function setHandler(address _addr, address _handler, bool _enabled) external onlyOwner {
+        require(_addr != address(0) && _handler != address(0), "STR: Invalid addresses");
+        handler[_addr][_handler] = _enabled;
+        emit HandlerChanged(_addr, _handler, _enabled);
     } 
 
     // temporary for prod testing - would be removed in main contract

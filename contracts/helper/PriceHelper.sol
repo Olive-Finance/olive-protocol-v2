@@ -3,7 +3,6 @@
 pragma solidity ^0.8.17;
 
 import {IPriceHelper} from './interfaces/IPriceHelper.sol';
-import {IRewards} from '../rewards/interfaces/IRewards.sol';
 import {Governable} from '../utils/Governable.sol';
 
 import {Constants} from '../lib/Constants.sol';

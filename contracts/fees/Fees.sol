@@ -17,7 +17,6 @@ contract Fees is IFees, Allowed, Governable {
     // percentages
     uint256 public pFee;
     uint256 public mFee;
-    uint256 public keeperFee;
     uint256 public liquidationFee;
     uint256 public liquidatorFee;
 

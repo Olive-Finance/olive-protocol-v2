@@ -41,7 +41,7 @@ contract VaultManager is IVaultManager, Allowed {
         require(vaultCore.isHealthy(caller), "VM: Degarded HF, Liquidation risk");
     }
 
-    function setVaultCore(address _vaultCore) external {
+    function setVaultCore(address _vaultCore) external onlyOwner {
         require(
             _vaultCore != address(0) && _vaultCore != address(this),
             "VM: Invalid core"

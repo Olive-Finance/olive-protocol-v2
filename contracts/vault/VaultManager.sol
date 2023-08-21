@@ -159,19 +159,18 @@ contract VaultManager is IVaultManager, Allowed {
         return _deposit(msg.sender, 0, _leverage, _expShares, _slippage);
     }
 
+    function _getDebt(address _user, uint256 _curLeverage, uint256 _toLeverage, uint256 _amount) internal view returns (uint256) {
+        uint256 collateral = vaultCore.getCollateral(_user);
+        uint256 debt = (collateral * (_toLeverage - _curLeverage)) + (_amount * (_toLeverage - vaultCore.getMinLeverage()));
+        return (debt / Constants.PINT); 
+    }
+
     function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) internal returns (bool) {
-        require(_leverage >= getLeverage(_user) && _leverage <= vaultCore.getMaxLeverage(),
+        uint256 curLeverage = getLeverage(_user);
+        require(_leverage >= curLeverage && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
-        uint256 collateral = vaultCore.getCollateral(_user);
-        uint256 scaledLeverage = getLeverage(_user);
-        if (collateral > 0) {
-            scaledLeverage = (getLeverage(_user) * collateral) / (collateral + _amount);
-        }
-        
-        uint256 debt = ((_leverage - scaledLeverage) * (collateral + _amount)) / Constants.PINT; 
-
-        
+        uint256 debt = _getDebt(_user, curLeverage, _leverage, _amount);
         uint256 bought;
         IERC20(vaultCore.getAssetToken()).transferFrom(_user, address(vaultCore), _amount);
         if (debt > 0) {

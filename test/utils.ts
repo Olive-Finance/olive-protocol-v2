@@ -88,7 +88,7 @@ export async function deployGLPVault() {
     stgy.setFees(fees.address);
 
     // Assset is GLP 
-    const Token = await ethers.getContractFactory("Token");
+    const Token = await ethers.getContractFactory("OToken");
     const oGlp = await Token.deploy('oGLP Token', 'oGLP', 18);
     await oGlp.deployed();
 

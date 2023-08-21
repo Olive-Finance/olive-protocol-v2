@@ -91,12 +91,4 @@ contract GLPVault is VaultCore {
     function isHealthy(address _user) external view override returns (bool) {
         return hf(_user) >= HF_THRESHOLD;
     }
-
-    // temporary for prod testing - would be removed in main contract
-    function rescueToken(address _token, address _to) external onlyOwner {
-        IERC20 token = IERC20(_token);
-        uint256 balance = token.balanceOf(address(this));
-        require(balance > 0, "GLP Vault: No token balance");
-        token.transfer(_to, balance);
-    }
 }

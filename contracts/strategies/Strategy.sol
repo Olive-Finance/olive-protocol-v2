@@ -49,7 +49,7 @@ contract Strategy is IStrategy, Allowed {
     }
 
     modifier onlyKeeper {
-        require(msg.sender == keeper, "STR: Insufficient previlages");
+        require(msg.sender == keeper || msg.sender == address(this), "STR: Insufficient previlages");
         _;  
     }
 
@@ -117,7 +117,7 @@ contract Strategy is IStrategy, Allowed {
         return amount;
     }
 
-    function harvest() external override whenNotPaused onlyKeeper {
+    function harvest() public override onlyKeeper {
         claimRouter.compound();  
         claimRouter.claimFees();
         uint256 nativeBal = rToken.balanceOf(address(this));
@@ -156,6 +156,9 @@ contract Strategy is IStrategy, Allowed {
     }
 
     function setPPS() internal {
+        if (sToken.totalSupply() == 0) {
+            pps = Constants.PINT;
+        }
         pps = (asset.balanceOf(address(this)) * Constants.PINT)/sToken.totalSupply();
     }
 
@@ -180,11 +183,10 @@ contract Strategy is IStrategy, Allowed {
         emit HandlerChanged(_addr, _handler, _enabled);
     } 
 
-    // temporary for prod testing - would be removed in main contract
-    function rescueToken(address _token, address _to) external onlyOwner {
-        IERC20 token = IERC20(_token);
-        uint256 bal= token.balanceOf(address(this));
-        require(bal > 0, "STR: No token balance");
-        token.transfer(_to, bal);
+    // Migration to new strategy
+    function migrate(address _to) external whenPaused onlyOwner {
+        // transfer the tokens
+        harvest();
+        asset.transfer(_to, asset.balanceOf(address(this)));
     }
 }

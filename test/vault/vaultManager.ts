@@ -1,10 +1,10 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers, web3 } from "hardhat";
-import { toN, deployGLPVault } from "./utils";
+import { toN, deployGLPVault } from "../utils";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-describe("Olive checks", function(){
+describe("VaultManager checks", function(){
 
     describe("Basic checks", function(){
         it("Owner check", async function(){
@@ -52,5 +52,13 @@ describe("Olive checks", function(){
             expect(await oGlp.balanceOf(u1.address)).to.equal(1250000000000);
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
         });
+
+        it("Deposit Leverage at 2nd time", async function(){
+            const {owner, glp, u1, doUSDC, vaultManager, oGlp} = await loadFixture(deployGLPVault);
+            await vaultManager.connect(u1).deposit(toN(100), toN(1), 0, 0);
+            await vaultManager.connect(u1).deposit(toN(100), toN(2), 0, 0);
+            expect(await oGlp.balanceOf(u1.address)).to.equal(toN(400));
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(199999999); 
+        });
     });
-});
+})

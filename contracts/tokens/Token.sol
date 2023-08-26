@@ -9,7 +9,7 @@ import {Allowed} from '../utils/Allowed.sol';
 
 contract Token is ERC20, Allowed, IMintable {
     uint8 precision = 18;
-
+    
     constructor(
         string memory _name,
         string memory _symbol,

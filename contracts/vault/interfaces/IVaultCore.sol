@@ -8,7 +8,6 @@ interface IVaultCore {
     function getMinLeverage() external view returns (uint256);
     function getMaxLeverage() external view returns (uint256);
     function getLiquidationThreshold() external view returns (uint256);
-    function getTreasury() external view returns (address);
     function getAssetToken() external view returns (address);
     function getLedgerToken() external view returns (address);
     function getLendingPool() external view returns (address);

@@ -136,5 +136,22 @@ describe("VaultKeeper checks", function(){
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); // dust balance 1e-6
             expect(Math.floor(await glp.balanceOf(u2.address)/1e18)).to.equal(496);
         });
+
+        it("Liquidate 500GLP, Borrowed 400GLP - [debt > position] | unstakes | bad debt", async function(){
+            const {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees} = await loadFixture(deployGLPVaultKeeper);
+            // u1 is depositor
+            // u2 is liquidator
+            await glpMockManager.setPriceOfGLP(toN(0.6, 30));
+            expect(Math.round(await glpVault.hf(u1.address)/1e15)).to.equal(675);
+            expect(await vaultKeeper.liquidators(u2.address)).to.equal(true);
+            await vaultKeeper.connect(u2).liquidation(u1.address, toN(400), false); 
+            
+            expect(Math.floor(await oGlp.balanceOf(u1.address)/1e16)).to.equal(0);
+            expect(await oGlp.balanceOf(u2.address)).to.equal(0);
+            expect(Math.floor(await oGlp.balanceOf(fees.getTreasury())/1e16)).to.equal(0);
+            expect(Math.floor(await sGlp.balanceOf(glpVault.address)/1e16)).to.equal(0);
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(1); // dust balance 1e-6
+            expect(Math.floor(await glp.balanceOf(u2.address)/1e18)).to.equal(500);
+        });
     });
 });

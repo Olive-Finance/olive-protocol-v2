@@ -8,7 +8,6 @@ const fs = require("fs");
 
 task('accounts', "Prints the list of accounts", async (taskArgs, hre) => {
   const accounts = await hre.ethers.getSigners();
-  console.log("An universal lover");
   for (const account of accounts) {
     console.log(account.address);
   }
@@ -159,7 +158,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       chainId: 1337,
     },
-    polygon: {
+    polytest: {
       url: "https://rpc-mumbai.maticvigil.com/",
       chainId: 80001,
     },

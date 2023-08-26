@@ -14,9 +14,6 @@ import {ILendingPool} from "../pools/interfaces/ILendingPool.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
 import {IVaultKeeper} from "../vault/interfaces/IVaultKeeper.sol";
 
-import "hardhat/console.sol";
-
-
 contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     IVaultCore public vaultCore;
     IVaultManager public vaultManager;
@@ -93,10 +90,6 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         uint256 toLiquidator;
         uint256 toTreasury;
 
-        console.log("debt", debt/1e6);
-        console.log("position", position/1e18);
-        console.log("debtInAsset", debtInAsset/1e18);
-
         if (position > debtInAsset) {
             (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debt, position, _toRepay, address(want));
         } else {
@@ -110,23 +103,16 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
 
     function handleExcess(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay, address _want) internal returns (uint256, uint256) {
         uint256 toPay = min(_debtInWant, _toRepay);
-        console.log("toPay", toPay/1e6);
         uint256 toPayInAsset = vaultCore.getTokenValueInAsset(_want, toPay);
-        console.log("toPayInAsset", toPayInAsset/1e14);
         uint256 feeInAsset = (toPayInAsset * fees.getLiquidationFee()) / Constants.HUNDRED_PERCENT;
-        console.log("feeInAsset", feeInAsset/1e14);
         uint256 liquidatorFee;
 
         if (_position - toPayInAsset < feeInAsset) {
             feeInAsset = _position - toPayInAsset;
         } 
-        console.log("feeInAsset", feeInAsset/1e14);
         vaultCore.burnShares(_user, feeInAsset + toPayInAsset);
         _repay(_liquidator, _user, toPay);
         liquidatorFee = (feeInAsset * fees.getLiquidatorFee())/Constants.HUNDRED_PERCENT;
-        console.log("liquidatorFee", liquidatorFee/1e14);
-        console.log("toTreasury", (feeInAsset - liquidatorFee)/1e14);
-        console.log("to Liquidators", (toPayInAsset + feeInAsset)/1e14);
         return (toPayInAsset + liquidatorFee, feeInAsset - liquidatorFee);
     }
 

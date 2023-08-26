@@ -28,7 +28,7 @@ export async function deployLendingPool() {
     await doUSDC.deployed();
 
     //Fund Token for USDC
-    const AUSDC = await ethers.getContractFactory("AToken");
+    const AUSDC = await ethers.getContractFactory("Token");
     const aUSDC = await AUSDC.deploy('AUSDC Token', 'aUSDC', 6);
     await aUSDC.deployed();
 
@@ -71,7 +71,7 @@ export async function deployStategy() {
     await sGlp.deployed();
 
     // Strategy contract
-    const Strategy = await ethers.getContractFactory('Strategy');
+    const Strategy = await ethers.getContractFactory('GLPStrategy');
     const stgy = await Strategy.deploy(glp.address, sGlp.address);
     await stgy.deployed();
 
@@ -124,9 +124,8 @@ export async function deployGLPVault() {
     await glpVault.setRewardsRouter(glpMockRouter.address);
     await glpVault.setVaultManager(vaultManager.address);
     await glpVault.setVaultKeeper(vaultKeeper.address);
-    await glpVault.setTreasury(owner.address);
     await glpVault.setLendingPool(pool.address);
-    await glpVault.setLeverage(utils.parseUnits("5", 18));
+    await glpVault.setLeverage(ethers.utils.parseUnits("5", 18));
     await glpVault.setPriceHelper(phMock.address);
     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
     await glpVault.setStrategy(stgy.address);
@@ -134,8 +133,8 @@ export async function deployGLPVault() {
     await oGlp.grantRole(glpVault.address);
 
     await stgy.setGLPRouters(glpMockRouter.address, glpMockRouter.address);
-    await phMock.setPriceOf(usdc.address, toN(1));
-    await phMock.setPriceOf(wETH.address, toN(1000));
+    await phMock.setPriceOf(usdc.address, ethers.utils.parseUnits('1', 18));
+    await phMock.setPriceOf(wETH.address, ethers.utils.parseUnits('1000', 18));
 
     await pool.grantRole(vaultManager.address);
 
@@ -177,10 +176,6 @@ export async function deployGLPVaultKeeper() {
     await vaultKeeper.setLiquidator(u2.address, true);
 
     await usdc.mint(u2.address, toN(100));
-
-    console.log(u2.address);
-    console.log(await vaultKeeper.liquidators(u2.address));
-
     return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees};
 }
 

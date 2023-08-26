@@ -13,7 +13,7 @@ import {IRewardManager} from "../interfaces/IRewardManager.sol";
 import {IVaultCore} from "../vault/interfaces/IVaultCore.sol";
 import {Allowed} from "../utils/Allowed.sol";
 
-contract Strategy is IStrategy, Allowed {
+contract GLPStrategy is IStrategy, Allowed {
     //List of addresses
     IERC20 public asset;
     IERC20 public rToken;

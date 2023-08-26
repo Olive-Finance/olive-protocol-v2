@@ -1,3 +1,4 @@
+
 import { ethers } from "hardhat";
 import { utils } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
@@ -119,15 +120,17 @@ export async function deployGLPVault() {
     const vaultKeeper = await VaultKeeper.deploy();
     await vaultKeeper.deployed();
 
-    await vaultManager.setVaultCore(glpVault.address);
+    // Setting the parameters for glp vault core
     await glpVault.setRewardsRouter(glpMockRouter.address);
     await glpVault.setVaultManager(vaultManager.address);
+    await glpVault.setVaultKeeper(vaultKeeper.address);
     await glpVault.setTreasury(owner.address);
     await glpVault.setLendingPool(pool.address);
     await glpVault.setLeverage(utils.parseUnits("5", 18));
     await glpVault.setPriceHelper(phMock.address);
     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
     await glpVault.setStrategy(stgy.address);
+    
     await oGlp.grantRole(glpVault.address);
 
     await stgy.setGLPRouters(glpMockRouter.address, glpMockRouter.address);
@@ -136,8 +139,14 @@ export async function deployGLPVault() {
 
     await pool.grantRole(vaultManager.address);
 
+    // Setting the vault manager addresses
+    await vaultManager.setVaultCore(glpVault.address);
     await vaultManager.setFees(fees.address);
+    
+    // Setting the vault keeper addresses
+    await vaultKeeper.setVaultCore(glpVault.address);
     await vaultKeeper.setFees(fees.address);
+    await vaultKeeper.setVaultManager(vaultManager.address);
 
     await fees.grantRole(vaultKeeper.address);
     await fees.grantRole(vaultManager.address);
@@ -145,6 +154,7 @@ export async function deployGLPVault() {
     await stgy.grantRole(vaultKeeper.address);
 
     await stgy.setHandler(glpVault.address, vaultManager.address, true);
+    await stgy.setHandler(glpVault.address, vaultKeeper.address, true);
 
     await glp.mint(u1.address, toN(1000));
     await glp.connect(u1).approve(vaultManager.address, toN(10000000));
@@ -152,9 +162,26 @@ export async function deployGLPVault() {
     await usdc.mint(u3.address, toN(100));
     await usdc.connect(u3).approve(pool.address, toN(10000000000));
     await pool.connect(u3).supply(toN(1));
+    await vaultManager.connect(owner).setWhitelist([u1.address, u2.address, u3.address], true);   
 
     return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, 
-        rcl, pool, glp, wETH, sGlp, stgy, oGlp, glpVault, vaultManager, vaultKeeper};
+        rcl, pool, glp, wETH, sGlp, stgy, oGlp, glpVault, vaultManager, vaultKeeper, phMock, glpMockManager, fees}
+}
+
+export async function deployGLPVaultKeeper() {
+    const {owner, u1, u2, u3, usdc, aUSDC,
+         doUSDC, rcl, pool, glp, wETH, sGlp,
+          stgy, oGlp, glpVault, vaultManager,
+           vaultKeeper, phMock, glpMockManager, fees} = await loadFixture(deployGLPVault);
+    await vaultManager.connect(u1).deposit(toN(100), toN(5), 0, 0);
+    await vaultKeeper.setLiquidator(u2.address, true);
+
+    await usdc.mint(u2.address, toN(100));
+
+    console.log(u2.address);
+    console.log(await vaultKeeper.liquidators(u2.address));
+
+    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees};
 }
 
 export async function setupLendingPool() {

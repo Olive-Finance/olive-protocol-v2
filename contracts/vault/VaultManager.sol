@@ -22,14 +22,28 @@ contract VaultManager is IVaultManager, Allowed {
     // Allowed address for same block transactions
     mapping(address => bool) public allowedTxtor;
 
+    // Following is for beta testing
+    mapping(address => bool) public whitelist;
+    bool public isRestricted;
+
     // Empty constructor
-    constructor() Allowed(msg.sender) {}
+    constructor() Allowed(msg.sender) {
+        isRestricted = true;
+    }
 
     // Pre - modifiers
     modifier blockCheck() {
         address caller = msg.sender;
         if (!allowedTxtor[caller]) {
             require(userTxnBlockStore[caller] != block.number, "VM: Txn not allowed");
+        }
+        _;
+    }
+
+    // For Beta testing
+    modifier onlyWhitelisted() {
+        if (isRestricted) {
+            require(whitelist[msg.sender], "VK: Not authorised");
         }
         _;
     }
@@ -47,6 +61,16 @@ contract VaultManager is IVaultManager, Allowed {
             "VM: Invalid core"
         );
         vaultCore = IVaultCore(_vaultCore);
+    }
+
+    function setWhitelist(address[] calldata _user, bool _toWhitelist) external onlyOwner {
+        for (uint256 i=0; i<_user.length; i++) {
+            whitelist[_user[i]] = _toWhitelist;
+        }
+    }
+
+    function setRestricted(bool _isRestricted) external onlyOwner {
+        isRestricted = _isRestricted;
     }
 
     function getLeverage(address _user) public view override returns (uint256) {
@@ -150,12 +174,12 @@ contract VaultManager is IVaultManager, Allowed {
 
     // Vault functions
     function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
-     external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
+     external override blockCheck returns (bool) {
         return _deposit(msg.sender, _amount, _leverage, _expShares, _slippage);
     }
 
-    function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage)  // Why do we need this function - does it really help - merge with deposit 0
-     external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
+    function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage) 
+     external override blockCheck  returns (bool) {
         return _deposit(msg.sender, 0, _leverage, _expShares, _slippage);
     }
 
@@ -165,7 +189,7 @@ contract VaultManager is IVaultManager, Allowed {
         return (debt / Constants.PINT); 
     }
 
-    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) internal returns (bool) {
+    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) whenNotPaused nonReentrant onlyWhitelisted hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
         require(_leverage >= curLeverage && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
@@ -181,6 +205,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 minted = _mint(_user, toDeposit);
         require(!slipped(_expShares, minted, _slippage), "VM: Position slipped"); 
         emit Deposit(address(this), _user, toDeposit);
+        return true;
     }
 
     function deleverage(

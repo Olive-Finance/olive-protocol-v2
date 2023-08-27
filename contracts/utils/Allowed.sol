@@ -16,6 +16,14 @@ contract Allowed is Pausable, ReentrancyGuard {
         allowed[owner] = true;
     }
 
+    function enable(bool en) external {
+        if (en) {
+            _pause();
+        } else {
+            _unpause();
+        }
+    }
+
     /**
      * Modifier functions
      */

@@ -56,11 +56,8 @@ describe("Token checks", function(){
         await expect(oGlp.connect(u3).transferFrom(u1.address, u2.address, toN(100))).to.be.reverted; 
         expect (await oGlp.balanceOf(u2.address)).to.equal(toN(1));
         expect (await oGlp.balanceOf(u1.address)).to.equal(toN(499));
-        console.log(oGlp.allowance(u1.address, u3.address).toString());
         await expect(oGlp.connect(u3).transferFrom(u1.address, u2.address, toN(1))).not.to.be.reverted;
         expect (await oGlp.balanceOf(u2.address)).to.equal(toN(2));
         expect (await oGlp.balanceOf(u1.address)).to.equal(toN(498));
     });
-
-
 });

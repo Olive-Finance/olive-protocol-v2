@@ -83,7 +83,7 @@ contract GLPStrategy is IStrategy, Allowed {
 
     function setVaultCore(address _vaultCore) public onlyOwner {
         require(_vaultCore != address(0), "STR: Invalid vaultCore");
-        vaultCore = IVaultCore(vaultCore);
+        vaultCore = IVaultCore(_vaultCore);
     }
 
     function setRewardManager(address _rewardManager) public onlyOwner {
@@ -132,7 +132,7 @@ contract GLPStrategy is IStrategy, Allowed {
     }
 
     function chargeFees(uint256 yield) internal {
-        uint256 pFees = (yield * fees.getPFee())/ Constants.PINT;
+        uint256 pFees = (yield * fees.getPFee())/ Constants.HUNDRED_PERCENT;
         uint256 mFees = vaultCore.getTokenValueforAsset(address(rToken), fees.getAccumulatedFee());
         uint256 toOliveHolders = (pFees * fees.getRewardRateForOliveHolders()) / Constants.HUNDRED_PERCENT;
         uint256 feeLimit =  ((yield * 5)/10) - pFees;

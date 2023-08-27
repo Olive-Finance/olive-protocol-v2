@@ -164,19 +164,51 @@ export async function deployGLPVault() {
     await vaultManager.connect(owner).setWhitelist([u1.address, u2.address, u3.address], true);   
 
     return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, 
-        rcl, pool, glp, wETH, sGlp, stgy, oGlp, glpVault, vaultManager, vaultKeeper, phMock, glpMockManager, fees}
+        rcl, pool, glp, wETH, sGlp, stgy, oGlp, glpVault, vaultManager, vaultKeeper, phMock, glpMockManager, fees, glpMockRouter}
 }
 
 export async function deployGLPVaultKeeper() {
     const {owner, u1, u2, u3, usdc, aUSDC,
          doUSDC, rcl, pool, glp, wETH, sGlp,
           stgy, oGlp, glpVault, vaultManager,
-           vaultKeeper, phMock, glpMockManager, fees} = await loadFixture(deployGLPVault);
+           vaultKeeper, phMock, glpMockManager, fees, glpMockRouter} = await loadFixture(deployGLPVault);
     await vaultManager.connect(u1).deposit(toN(100), toN(5), 0, 0);
     await vaultKeeper.setLiquidator(u2.address, true);
 
+    await stgy.setKeeper(vaultKeeper.address);
+
+    await glpMockRouter.setRewardsToken(wETH.address);
+    await wETH.grantRole(glpMockRouter.address);
+    await glpMockRouter.setFeesToClaim(toN(20));
+    
+    await stgy.setVaultCore(glpVault.address);
+    await stgy.setRewardsToken(wETH.address);
+    await stgy.setFees(fees.address);
+
+    await fees.grantRole(vaultKeeper.address);
+    await fees.grantRole(stgy.address);
+
+    const OliveManager = await ethers.getContractFactory("OliveManager");
+    const oliveManager = await OliveManager.deploy();
+    await oliveManager.deployed();
+
+    const ESOlive = await ethers.getContractFactory("ESOlive");
+    const esOlive = await ESOlive.deploy(oliveManager.address);
+    await esOlive.deployed();
+
+    const Olive = await ethers.getContractFactory("Olive");
+    const olive = await Olive.deploy(oliveManager.address);
+    await olive.deployed();
+
+    await oliveManager.setRewardToken(wETH.address);
+    await oliveManager.setTokens(olive.address, esOlive.address);
+    await oliveManager.setFees(fees.address);
+
+    await stgy.setRewardManager(oliveManager.address);
+    await oliveManager.grantRole(stgy.address);
+
     await usdc.mint(u2.address, toN(100));
-    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees};
+    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, stgy};
 }
 
 export async function setupLendingPool() {
@@ -192,4 +224,44 @@ export async function setupLendingPool() {
 
     await pool.setFees(fees.address);
     return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
+}
+
+export async function deployOliveManager() {
+    const accounts = await ethers.getSigners();
+    const owner = accounts[0];
+
+    const u1 = accounts[1];
+    const u2 = accounts[2];
+    const u3 = accounts[3];
+    const treasury = accounts[4];
+
+    const OliveManager = await ethers.getContractFactory("OliveManager");
+    const oliveManager = await OliveManager.deploy();
+    await oliveManager.deployed();
+
+    const ESOlive = await ethers.getContractFactory("ESOlive");
+    const esOlive = await ESOlive.deploy(oliveManager.address);
+    await esOlive.deployed();
+
+    const Olive = await ethers.getContractFactory("Olive");
+    const olive = await Olive.deploy(oliveManager.address);
+    await olive.deployed();
+
+    const Token = await ethers.getContractFactory("Token");
+    const wETH = await Token.deploy('WETH Token', 'Weth', 18);
+    await wETH.deployed();
+
+    const Fees = await ethers.getContractFactory("Fees");
+    const fees = await Fees.deploy();
+    await fees.deployed();
+    await fees.setTreasury(treasury.address);
+    
+    await oliveManager.setRewardToken(wETH.address);
+    await oliveManager.setTokens(olive.address, esOlive.address);
+    await esOlive.setMinter([owner.address], [true]);
+    await esOlive.mint(u1.address, toN(100));
+    await oliveManager.setFees(fees.address);
+
+    await wETH.mint(owner.address, toN(100));
+    return {oliveManager, esOlive, olive, owner, u1, u2, u3, wETH, treasury};
 }

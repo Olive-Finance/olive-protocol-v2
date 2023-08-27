@@ -154,4 +154,14 @@ describe("VaultKeeper checks", function(){
             expect(Math.floor(await glp.balanceOf(u2.address)/1e18)).to.equal(500);
         });
     });
+
+    describe("Liquidation checks", function(){
+        it("Harvesting checks", async function(){
+            const {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, stgy} = await loadFixture(deployGLPVaultKeeper);
+            // u1 is depositor 500oGLP, 400USDC Debt
+            let pps = (await glpVault.pps()/1e16);
+            await vaultKeeper.connect(u1).harvest();
+            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+        });
+    });
 });

@@ -89,7 +89,7 @@ contract VaultManager is IVaultManager, Allowed {
     }
 
     function balance() public view override returns (uint256) {
-        return IStrategy(vaultCore.getStrategy()).balanceOf(address(this));
+        return IStrategy(vaultCore.getStrategy()).balanceOf(address(vaultCore));
     }
 
     function totalSupply() public view override returns (uint256) {

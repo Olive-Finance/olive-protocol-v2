@@ -36,6 +36,9 @@ library Constants {
     uint256 constant REWARDS_PAYOUT_PERIOD = 30 days;
     uint256 constant ONE_DAY = 1 days;
 
+    uint256 constant TEN_DAYS = 10 days;
+    uint256 constant SIXTY_DAYS = 60 days;
+
     // Numerical constant/s
     uint256 constant HUNDERED = 100;
 

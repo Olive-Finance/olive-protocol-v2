@@ -8,7 +8,7 @@ import {IRewardManager} from "../interfaces/IRewardManager.sol";
 
 import {Constants} from "../lib/Constants.sol";
 
-contract esOLIVE is ERC20Votes, Governable {
+contract ESOlive is ERC20Votes, Governable {
     mapping(address => bool) public esOLIVEMinter;
     IRewardManager public oliveMgr;
 

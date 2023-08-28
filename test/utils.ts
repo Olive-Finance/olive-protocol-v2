@@ -208,7 +208,7 @@ export async function deployGLPVaultKeeper() {
     await oliveManager.grantRole(stgy.address);
 
     await usdc.mint(u2.address, toN(100));
-    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, stgy};
+    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, stgy, wETH, glpMockRouter};
 }
 
 export async function setupLendingPool() {

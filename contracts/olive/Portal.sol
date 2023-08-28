@@ -4,10 +4,10 @@ pragma solidity ^0.8.17;
 
 pragma abicoder v2;
 
-import "@openzeppelin/contracts/security/Pausable.sol";
-import "../interfaces/IMintable.sol";
-import "./NonBlockingLzApp.sol";
-import "../utils/Allowed.sol";
+import {Pausable} from "@openzeppelin/contracts/security/Pausable.sol";
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IMintable} from "../interfaces/IMintable.sol";
+import {NonblockingLzApp} from "../lzApp/NonBlockingLzApp.sol";
 
 contract Portal is NonblockingLzApp, Pausable {
 
@@ -35,10 +35,14 @@ contract Portal is NonblockingLzApp, Pausable {
         address _user, 
         uint256 _amount
     ) public payable whenNotPaused {
+        require(_user != address(0), "Portal: Invalid user address");
+        require(_amount > 0, "Portal: Invalid amount");
+        require(IERC20(address(olive)).balanceOf(address(this)) >= _amount, "Portal: Insufficient olive balance");
         require(address(this).balance > 0, "the balance of this contract is 0. pls send gas for message fees");
 
         // encode the payload with user and amount -- desination is always gonna be ethereum
         bytes memory payload = abi.encode(_user, _amount);
+        olive.burn(_user, _amount);
 
         // use adapterParams v1 to specify more gas for the destination
         uint16 version = 1;

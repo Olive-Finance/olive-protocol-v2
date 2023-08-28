@@ -36,6 +36,9 @@ library Constants {
     uint256 constant REWARDS_PAYOUT_PERIOD = 30 days;
     uint256 constant ONE_DAY = 1 days;
 
+    uint256 constant TEN_DAYS = 10 days;
+    uint256 constant SIXTY_DAYS = 60 days;
+
     // Numerical constant/s
     uint256 constant HUNDERED = 100;
 
@@ -56,10 +59,10 @@ library Constants {
     uint256 constant FIFTY_DAYS = 50;
 
     // Default fee values
-    uint256 constant ManagementFee = 2e18;
-    uint256 constant PerformanceFee = 10e18;
-    uint256 constant LiquidationFee = 5e18;
-    uint256 constant LiquidatorFee = 80e18;
-    uint256 constant RewardToOLVHolders = 20e18;
-    uint256 constant YieldFeeLimit = 30e18;
+    uint256 constant ManagementFee = 2e18; // 2% 
+    uint256 constant PerformanceFee = 10e18; // 10%
+    uint256 constant LiquidationFee = 5e18; // 5%
+    uint256 constant LiquidatorFee = 80e18; // 80%
+    uint256 constant RewardToOLVHolders = 20e18; //20% 
+    uint256 constant YieldFeeLimit = 30e18; // 30%
 }

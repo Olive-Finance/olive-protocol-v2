@@ -18,9 +18,6 @@ abstract contract VaultCore is IVaultCore, Allowed {
     //Address for strategy
     address public strategy;
 
-    //Olive treasury address
-    address public treasury;
-
     // Pool for borrowing
     address public lendingPool;
 
@@ -71,14 +68,6 @@ abstract contract VaultCore is IVaultCore, Allowed {
         strategy = _strategy;
     }
 
-    function setTreasury(address _treasury) external onlyOwner {
-        require(
-            _treasury != address(0) && _treasury != address(this),
-            "VC: Invalid treasury address"
-        );
-        treasury = _treasury;
-    }
-
     function setLeverage(uint256 _maxLeverage) external onlyOwner {
         require(_maxLeverage > MIN_LEVERAGE && _maxLeverage <= Constants.MAX_LEVERAGE_LIMIT, "VC: Invalid leverage");
         MAX_LEVERAGE = _maxLeverage;
@@ -113,10 +102,6 @@ abstract contract VaultCore is IVaultCore, Allowed {
     // Vault view functions
     function getPPS() external view override returns (uint256) {
         return pps;
-    }
-
-    function getTreasury() external view override returns (address) {
-        return treasury;
     }
 
     function getAssetToken() external view override returns (address) {

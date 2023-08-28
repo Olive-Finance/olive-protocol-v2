@@ -8,7 +8,6 @@ import {IFees} from "../fees/interfaces/IFees.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {IRewardManager} from "../interfaces/IRewardManager.sol";
 
-
 import {Constants} from "../lib/Constants.sol";
 
 contract OliveManager is IRewardManager, Allowed { 
@@ -32,7 +31,10 @@ contract OliveManager is IRewardManager, Allowed {
     uint256 public unclaimedRewards;
 
     // Constructor
-    constructor() Allowed(msg.sender) {}
+    constructor() Allowed(msg.sender) {
+        minVestingPeriod = Constants.TEN_DAYS;
+        maxVestingPeriod = Constants.SIXTY_DAYS;
+    }
 
     function setMinVestingPeriod(uint256 _minVestingPeriod) external onlyOwner {
          require(_minVestingPeriod >= Constants.ONE_DAY, "Fund: Invalid min vesting period");
@@ -192,7 +194,7 @@ contract OliveManager is IRewardManager, Allowed {
 
     function withdrawToTreasury() external onlyOwner {
         require(unclaimedRewards > 0, "Fund: No unclaimed rewards");
-        unclaimedRewards = 0;
         rewardToken.transfer(fees.getTreasury(), unclaimedRewards);
+        unclaimedRewards = 0;
     } 
 }

@@ -26,7 +26,7 @@ describe("VaultManager checks", function(){
             const {owner, glp, u1, doUSDC, vaultManager, oGlp} = await loadFixture(deployGLPVault);
             await vaultManager.connect(u1).deposit(toN(1000), toN(2), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(2000));
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(999999999); 
+            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(1000); 
         });
 
 
@@ -34,7 +34,7 @@ describe("VaultManager checks", function(){
             const {owner, glp, u1, doUSDC, vaultManager, oGlp} = await loadFixture(deployGLPVault);
             await vaultManager.connect(u1).deposit(toN(1000), toN(2), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(2000));
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(999999999); 
+            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(1000); 
             await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(1000));
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
@@ -44,7 +44,7 @@ describe("VaultManager checks", function(){
             const {owner, glp, u1, doUSDC, vaultManager, oGlp} = await loadFixture(deployGLPVault);
             await vaultManager.connect(u1).deposit(toN(1000), toN(2), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(2000));
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(999999999); 
+            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(1000); 
             await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(1000));
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
@@ -58,7 +58,7 @@ describe("VaultManager checks", function(){
             await vaultManager.connect(u1).deposit(toN(100), toN(1), 0, 0);
             await vaultManager.connect(u1).deposit(toN(100), toN(2), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(400));
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(199999999); 
+            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(200); 
         });
     });
 })

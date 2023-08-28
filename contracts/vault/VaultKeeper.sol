@@ -14,7 +14,6 @@ import {ILendingPool} from "../pools/interfaces/ILendingPool.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
 import {IVaultKeeper} from "../vault/interfaces/IVaultKeeper.sol";
 
-
 contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     IVaultCore public vaultCore;
     IVaultManager public vaultManager;
@@ -49,7 +48,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
 
     function setLiquidator(address _liquidator, bool toActivate) external onlyGov {
         require(_liquidator != address(0), "VK: Invalid keeper");
-        liquidators[msg.sender] = toActivate;
+        liquidators[_liquidator] = toActivate;
         emit LiquidatorChanged(_liquidator, toActivate, block.timestamp);
     }
     
@@ -91,12 +90,11 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         uint256 toLiquidator;
         uint256 toTreasury;
 
-        if (position >= debtInAsset) {
-            (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debtInAsset, position, _toRepay, address(want));
+        if (position > debtInAsset) {
+            (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debt, position, _toRepay, address(want));
         } else {
             toLiquidator = handleBadDebt(liquidator, _user, debt, position, _toRepay);
         }
-
         _transfer(liquidator, toLiquidator, _toStake);
         if (toTreasury > 0) {
             _transfer(fees.getTreasury(), toTreasury, true);

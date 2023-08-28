@@ -17,6 +17,8 @@ contract GLPMock is IGLPRouter, IClaimRouter {
     
     uint256 public priceOfGLP;
     address public glpMgrAddress;
+    address public rewardsToken;
+    uint256 public fees;
 
     constructor(address _glpManager) {
         glpMgrAddress = _glpManager;
@@ -40,9 +42,22 @@ contract GLPMock is IGLPRouter, IClaimRouter {
         return GLPInterface(glpMgrAddress).burn(_tokenOut, msg.sender, _glpAmount);
     }
 
-    function compound() external override {}
+    function setRewardsToken(address _rewardsToken) external {
+        rewardsToken = _rewardsToken;
+    }
 
-    function claimFees() external override {}
+    function compound() external override {
+        return;
+    }
+
+    function setFeesToClaim(uint256 _fees) external {
+        fees = _fees;
+    }
+
+    function claimFees() external override {
+        IMintable token = IMintable(rewardsToken);
+        token.mint(msg.sender, fees);
+    }
 
     function glpManager() external view override returns (address) {
         return glpMgrAddress;

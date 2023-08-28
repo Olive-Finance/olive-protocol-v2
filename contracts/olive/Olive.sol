@@ -23,13 +23,13 @@ contract Olive is ERC20, Allowed, Governable{
         _; 
     }
 
-    function setKeeper(address _keeper) external onlyGov {
+    function setKeeper(address _keeper) external onlyOwner {
         require(_keeper != address(0) && _keeper != address(this), "Olive: Invalid keeper");
         keeper = _keeper;
     }
 
     function setOliveManager(address _oliveMgr) external onlyOwner {
-        require(_oliveMgr != address(0) && _oliveMgr != address(this), "Olive: Invalid keeper");
+        require(_oliveMgr != address(0) && _oliveMgr != address(this), "Olive: Invalid Manager");
         oliveMgr = _oliveMgr;
     }
 

@@ -191,6 +191,11 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await glp.mint(u5, toN(10000))
   await usdc.mint(u5, toN(10000, 6))
 
+  await owner.sendTransaction({
+    to: u5,
+    value: ethers.utils.parseEther("10.0"), // Sends exactly 5.0 ether
+  });
+
   console.log("usdc: ", usdc.address);
   console.log("glp: ", glp.address);
   console.log("oGlp: ", oGlp.address);

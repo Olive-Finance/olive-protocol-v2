@@ -16,7 +16,7 @@ contract Allowed is Pausable, ReentrancyGuard {
         allowed[owner] = true;
     }
 
-    function enable(bool en) external {
+    function enable(bool en) external onlyOwner {
         if (en) {
             _pause();
         } else {

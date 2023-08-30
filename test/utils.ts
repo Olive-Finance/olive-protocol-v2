@@ -86,8 +86,6 @@ export async function deployGLPVault() {
     await loadFixture(setupLendingPool);
     const {glp, wETH, sGlp, stgy} = await loadFixture(deployStategy);
 
-    stgy.setFees(fees.address);
-
     // Assset is GLP 
     const Token = await ethers.getContractFactory("OToken");
     const oGlp = await Token.deploy('oGLP Token', 'oGLP', 18);
@@ -119,6 +117,8 @@ export async function deployGLPVault() {
     const VaultKeeper = await ethers.getContractFactory("VaultKeeper");
     const vaultKeeper = await VaultKeeper.deploy();
     await vaultKeeper.deployed();
+
+    await stgy.setFees(fees.address);
 
     // Setting the parameters for glp vault core
     await glpVault.setRewardsRouter(glpMockRouter.address);

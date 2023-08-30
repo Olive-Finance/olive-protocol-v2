@@ -1,8 +1,6 @@
 import { HardhatUserConfig, task } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@nomiclabs/hardhat-web3";
-import { utils } from "ethers";
-import { vault } from "./typechain-types/contracts";
 require("hardhat-contract-sizer");
 const fs = require("fs");
 
@@ -15,140 +13,185 @@ task('accounts', "Prints the list of accounts", async (taskArgs, hre) => {
 
 task("deploy", "Deploys contract, get wallets, and outputs files", async (taskArgs, hre) => {
   const ethers = hre.ethers;
-  const toN = (n: any)=>{return ethers.utils.parseUnits(n.toString(), 18)};
+  const toN = (n: any, d=18)=>{return ethers.utils.parseUnits(n.toString(), d)};
 
-  // Get generated signer wallets
-  const accounts = await hre.ethers.getSigners();
+  const accounts = await ethers.getSigners();
+    const owner = accounts[0];
 
-  // Get the first wallet address
-  const owner = accounts[0];
-  const u1 = accounts[1];
+    const u1 = accounts[1];
+    const u2 = accounts[2];
+    const u3 = accounts[3];
+    const treasury = accounts[4];
 
-  //ASSET - GLP
-  const GLP = await ethers.getContractFactory("Token");
-  const glp = await GLP.deploy('USDC Token', 'USDC', 18);
+    const u5 = '0xebb83B26f452a328bc6C4e3aa458AE3F2DF844C4';
+
+    // Following are the asset tokens which each of the pools use
+    // USDC
+    const USDC = await ethers.getContractFactory("Token");
+    const usdc = await USDC.deploy('USDC Token', 'USDC', 6);
+    await usdc.deployed();
+
+    //Debt Token for USDC
+    const DOUSDC = await ethers.getContractFactory("DToken");
+    const doUSDC = await DOUSDC.deploy('DOUSDC Token', 'doUSDC', 6);
+    await doUSDC.deployed();
+
+    //Fund Token for USDC
+    const AUSDC = await ethers.getContractFactory("Token");
+    const aUSDC = await AUSDC.deploy('AUSDC Token', 'aUSDC', 6);
+    await aUSDC.deployed();
+
+    // Rate Calculator 
+    const RCL = await ethers.getContractFactory("RateCalculator");
+    const rcl = await RCL.deploy(toN(0.03), toN(0.03), toN(0.03), toN(0.8));
+    await rcl.deployed();
+
+    // Fees
+    const Fees = await ethers.getContractFactory("Fees");
+    const fees = await Fees.deploy();
+    await fees.deployed();
+    await fees.setTreasury(treasury.address);
+
+
+    // USDC Lending pool
+    const LPUSDC = await ethers.getContractFactory("LendingPool");
+    const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
+    
+    await pool.deployed();
+
+  // Assset is GLP 
+  const Token = await ethers.getContractFactory("Token");
+  const glp = await Token.deploy('GLP Token', 'GLP', 18);
   await glp.deployed();
-  console.log("GLP: ", glp.address);
 
-  // Following are the asset tokens which each of the pools use
-  // USDC
-  const USDC = await ethers.getContractFactory("Token");
-  const usdc = await USDC.deploy('USDC Token', 'USDC', 6);
-  await usdc.deployed();
-  console.log("USDC: ", usdc.address);
+  // Rewards token
+  const wETH = await Token.deploy('WETH Token', 'Weth', 18);
+  await wETH.deployed();
 
-  // Debt Ledger tokens
-  //Debt Token for USDC
-  const DOUSDC = await ethers.getContractFactory("DToken");
-  const doUSDC = await DOUSDC.deploy('DOUSDC Token', 'doUSDC', 6);
-  await doUSDC.deployed();
-  console.log("doUSDC: ", doUSDC.address);
+  // Strategy token
+  const sGlp = await Token.deploy('S Token', 'sToken', 18);
+  await sGlp.deployed();
 
-  // Fund Ledger tokens
-  //Fund Token for USDC
-  const AUSDC = await ethers.getContractFactory("AToken");
-  const aUSDC = await AUSDC.deploy('AUSDC Token', 'aUSDC', 6);
-  await aUSDC.deployed();
-  console.log("aUSDC: ", aUSDC.address);
+  // Strategy contract
+  const Strategy = await ethers.getContractFactory('GLPStrategy');
+  const stgy = await Strategy.deploy(glp.address, sGlp.address);
+  await stgy.deployed();
 
-  // Rate Calculator 
-  const RCL = await hre.ethers.getContractFactory("RateCalculator");
-  const rcl = await RCL.deploy(toN(0.03), toN(0.03), toN(0.03), toN(0.8));
-  await rcl.deployed();
-  console.log("rcl: ", rcl.address);
+  await pool.grantRole(u1.address);
+  await pool.grantRole(u2.address);
+  await aUSDC.grantRole(pool.address);
+  await doUSDC.grantRole(pool.address);
 
-  // Lending pool definitions
-  // USDC Lending pool
-  const LPUSDC = await ethers.getContractFactory("LendingPool");
-  const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
-  await pool.deployed();
-  console.log("lpUSDC: ", pool.address);
+  await sGlp.grantRole(stgy.address);
 
-  // Vault tokens
+  // Assset is GLP 
   const OToken = await ethers.getContractFactory("OToken");
-  const oGLP = await OToken.deploy('OGLP Token', 'oGLP');
-  await oGLP.deployed();
-  console.log("oGLP: ", oGLP.address);
-
-  const soGLP = await AUSDC.deploy('SOGLP Token', 'soGLP', 18);
-  await soGLP.deployed();
-  console.log("soGLP: ", soGLP.address);
+  const oGlp = await OToken.deploy('oGLP Token', 'oGLP', 18);
+  await oGlp.deployed();
 
   const GLPVault = await ethers.getContractFactory("GLPVault");
   const glpVault = await GLPVault.deploy();
   await glpVault.deployed();
-  console.log("GLPVault: ", glpVault.address);
 
-  const VaultManager = await ethers.getContractFactory("VaultManager");
-  const vaultManager = await VaultManager.deploy();
-  await vaultManager.deployed();
-  console.log("VaultManager: ", vaultManager.address);
+  const GLPManager = await ethers.getContractFactory("GLPMockManager");
+  const glpMockManager = await GLPManager.deploy(glp.address);
+  await glpMockManager.deployed();
+  glp.grantRole(glpMockManager.address);
 
-  const Strategy = await ethers.getContractFactory("Strategy");
-  const strategy = await Strategy.deploy(glp.address, soGLP.address);
-  await strategy.deployed();
-  console.log("Strategy: ", strategy.address);
-
-  const GLPMock = await ethers.getContractFactory("GLPMock");
-  const glpMock = await GLPMock.deploy(glp.address);
-  await glpMock.deployed();
-  console.log("GLPMock: ", glpMock.address);
+  const GLPMockRouter = await ethers.getContractFactory("GLPMock");
+  const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
+  await glpMockRouter.deployed();
 
   const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
   const phMock = await PriceHelperMock.deploy();
   await phMock.deployed();
-  console.log("PriceHelperMock: ", phMock.address);
 
-  await vaultManager.setVaultCore(glpVault.address);
-  await glpVault.setRewardsRouter(glpMock.address);
+  // setting up the GLP core
+
+  const VaultManager = await ethers.getContractFactory("VaultManager");
+  const vaultManager = await VaultManager.deploy();
+  await vaultManager.deployed();
+
+  const VaultKeeper = await ethers.getContractFactory("VaultKeeper");
+  const vaultKeeper = await VaultKeeper.deploy();
+  await vaultKeeper.deployed();
+
+  await stgy.setFees(fees.address);
+
+  // Setting the parameters for glp vault core
+  await glpVault.setRewardsRouter(glpMockRouter.address);
   await glpVault.setVaultManager(vaultManager.address);
-  await glpVault.setTreasury(owner.address);
+  await glpVault.setVaultKeeper(vaultKeeper.address);
   await glpVault.setLendingPool(pool.address);
-  await glpVault.setLeverage(utils.parseUnits("5", 18));
+  await glpVault.setLeverage(ethers.utils.parseUnits("5", 18));
   await glpVault.setPriceHelper(phMock.address);
-  await glpVault.setTokens(glp.address, oGLP.address, soGLP.address);
-  await glpVault.setStrategy(strategy.address);
-  await oGLP.grantRole(glpVault.address);
-  await aUSDC.grantRole(pool.address);
-  await doUSDC.grantRole(pool.address);
+  await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
+  await glpVault.setStrategy(stgy.address);
+  
+  await oGlp.grantRole(glpVault.address);
+
+  await stgy.setGLPRouters(glpMockRouter.address, glpMockRouter.address);
+  await phMock.setPriceOf(usdc.address, ethers.utils.parseUnits('1', 18));
+  await phMock.setPriceOf(wETH.address, ethers.utils.parseUnits('1000', 18));
+
   await pool.grantRole(vaultManager.address);
-  await glp.grantRole(glpMock.address);
 
-
-  await glp.mint(u1.address, ethers.utils.parseUnits('10000', 18));
-  await usdc.mint(owner.address, ethers.utils.parseUnits('10000', 6));
-  await usdc.connect(owner).approve(pool.address, ethers.utils.parseUnits('10000', 26));
-  await pool.connect(owner).supply(ethers.utils.parseUnits('10000', 6));
-  await glp.connect(u1).approve(vaultManager.address, ethers.utils.parseUnits('10000', 26));
-  await strategy.connect(owner).setHandler(glpVault.address, vaultManager.address, true);
-
-  // Write file
-  fs.writeFileSync('./.wallet', owner.address);
-
-  // Mainnet testing contract addresses
-  // https://arbiscan.io/address/0xb95db5b167d75e6d04227cfffa61069348d271f5
-
-  // Mainnet Token Addresses
-  // 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1 - wETH
-  // 0x1aDDD80E6039594eE970E5872D247bf0414C8903 - fsGLP
-  // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8 - Bridge USDC
-  // 0x5402B5F40310bDED796c7D0F3FF6683f5C0cFfdf - sGLP / GLP
+  // Setting the vault manager addresses
+  await vaultManager.setVaultCore(glpVault.address);
+  await vaultManager.setFees(fees.address);
   
-  // GLP Contracts
-  // 0xB95DB5B167D75e6d04227CfFFA61069348d271F5 - RewardsRouter - For buying
-  // 0xA906F338CB21815cBc4Bc87ace9e68c87eF8d8F1 - RewardsRouter - For rewards
-  // 0x3963FfC9dff443c2A94f21b129D429891E32ec18 - glpManager
-  
-  // Chainlink Addresses
-  // 0x639Fe6ab55C921f74e7fac1ee960C0B6293ba612 - ETH/USD Price Feed
-  // 0x50834F3163758fcC1Df9973b6e91f0F0F0434aD3 - USDC/USC Price Feed
-  // 0xFdB631F5EE196F0ed6FAa767959853A9F217697D - Arb One sequencer
-  // 0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8 - ARB Sequencer
+  // Setting the vault keeper addresses
+  await vaultKeeper.setVaultCore(glpVault.address);
+  await vaultKeeper.setFees(fees.address);
+  await vaultKeeper.setVaultManager(vaultManager.address);
 
-  // Deployed OliveContracts
-  // 0x326dBD1595473ddE549d15D129b226382cf267Ac - PriceHelper
-  // 0x6aCC55166BFAF187ca752F2739b9965A13Ce1B70 - glpVault / VaultCore
-  // 0xE6d40c6f8E9C22178961776ca9a18ED075714Bf9 - Strategy
+  await fees.grantRole(vaultKeeper.address);
+  await fees.grantRole(vaultManager.address);
+  await stgy.grantRole(vaultManager.address);
+  await stgy.grantRole(vaultKeeper.address);
+
+  await stgy.setHandler(glpVault.address, vaultManager.address, true);
+  await stgy.setHandler(glpVault.address, vaultKeeper.address, true);
+
+  await vaultManager.connect(owner).setWhitelist([u1.address, u2.address, u3.address], true);   
+
+  await stgy.setKeeper(vaultKeeper.address);
+
+    await glpMockRouter.setRewardsToken(wETH.address);
+    await wETH.grantRole(glpMockRouter.address);
+    await glpMockRouter.setFeesToClaim(toN(20));
+    
+    await stgy.setVaultCore(glpVault.address);
+    await stgy.setRewardsToken(wETH.address);
+    await stgy.setFees(fees.address);
+
+    await fees.grantRole(vaultKeeper.address);
+    await fees.grantRole(stgy.address);
+
+    const OliveManager = await ethers.getContractFactory("OliveManager");
+    const oliveManager = await OliveManager.deploy();
+    await oliveManager.deployed();
+
+    const ESOlive = await ethers.getContractFactory("ESOlive");
+    const esOlive = await ESOlive.deploy(oliveManager.address);
+    await esOlive.deployed();
+
+    const Olive = await ethers.getContractFactory("Olive");
+    const olive = await Olive.deploy(oliveManager.address);
+    await olive.deployed();
+
+    await oliveManager.setRewardToken(wETH.address);
+    await oliveManager.setTokens(olive.address, esOlive.address);
+    await oliveManager.setFees(fees.address);
+
+    await stgy.setRewardManager(oliveManager.address);
+    await oliveManager.grantRole(stgy.address);  
+
+
+  await glp.mint(u5, toN(10000))
+  await usdc.mint(u5, toN(10000, 6))
+
+
 });
 
 const config: HardhatUserConfig = {
@@ -159,7 +202,7 @@ const config: HardhatUserConfig = {
       chainId: 1337,
     },
     polytest: {
-      url: "https://rpc-mumbai.maticvigil.com/",
+      url: "https://rpc.ankr.com/polygon_mumbai",
       chainId: 80001,
     },
     arbtest: {
@@ -171,6 +214,8 @@ const config: HardhatUserConfig = {
       chainId: 42161,
     }
   },
+  gas: 800000000,
+  gasPrice: 800000000,
   gasReporter: {
     enabled: true,
     currency: "USD", // currency to show
@@ -186,3 +231,8 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
+
+
+// await vaultManager.leverage(ethers.utils.parseUnits('5', 18), 0, 0)
+
+// 0x55b587b0d01e5D66E85e1e8e9FD509052BB2A1D3

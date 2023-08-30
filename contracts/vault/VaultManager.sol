@@ -191,7 +191,7 @@ contract VaultManager is IVaultManager, Allowed {
 
     function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) whenNotPaused nonReentrant onlyWhitelisted hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
-        require(_leverage >= curLeverage && _leverage <= vaultCore.getMaxLeverage(),
+        require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
         uint256 debt = _getDebt(_user, curLeverage, _leverage, _amount);

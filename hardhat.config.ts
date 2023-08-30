@@ -191,7 +191,17 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await glp.mint(u5, toN(10000))
   await usdc.mint(u5, toN(10000, 6))
 
-
+  console.log("usdc: ", usdc.address);
+  console.log("glp: ", glp.address);
+  console.log("oGlp: ", oGlp.address);
+  console.log("sGlp: ", sGlp.address);
+  console.log("aUSDC: ", aUSDC.address);
+  console.log("doUSDC: ", doUSDC.address);
+  console.log("glpVault: ", glpVault.address);
+  console.log("manager: ", vaultManager.address);
+  console.log("keeper: ", vaultKeeper.address);
+  console.log("fees: ", fees.address);
+  console.log("pool: ", pool.address);
 });
 
 const config: HardhatUserConfig = {

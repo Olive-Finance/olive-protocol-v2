@@ -13,7 +13,7 @@ task('accounts', "Prints the list of accounts", async (taskArgs, hre) => {
 
 task("deploy", "Deploys contract, get wallets, and outputs files", async (taskArgs, hre) => {
   const ethers = hre.ethers;
-  const toN = (n: any, d=18)=>{return ethers.utils.parseUnits(n.toString(), d)};
+  const toN = (n, d=18)=>{return ethers.utils.parseUnits(n.toString(), d)};
 
   const accounts = await ethers.getSigners();
     const owner = accounts[0];
@@ -83,6 +83,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await doUSDC.grantRole(pool.address);
 
   await sGlp.grantRole(stgy.address);
+  await pool.setFees(fees.address);
 
   // Assset is GLP 
   const OToken = await ethers.getContractFactory("OToken");
@@ -96,11 +97,13 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   const GLPManager = await ethers.getContractFactory("GLPMockManager");
   const glpMockManager = await GLPManager.deploy(glp.address);
   await glpMockManager.deployed();
-  glp.grantRole(glpMockManager.address);
+  await glp.grantRole(glpMockManager.address);
+  await usdc.grantRole(glpMockManager.address);
 
-  const GLPMockRouter = await ethers.getContractFactory("GLPMock");
-  const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
-  await glpMockRouter.deployed();
+
+  const GLPMockRouter1 = await ethers.getContractFactory("GLPMock");
+  const glpMockRouter1 = await GLPMockRouter.deploy(glpMockManager.address);
+  await glpMockRouter1.deployed();
 
   const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
   const phMock = await PriceHelperMock.deploy();
@@ -119,7 +122,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await stgy.setFees(fees.address);
 
   // Setting the parameters for glp vault core
-  await glpVault.setRewardsRouter(glpMockRouter.address);
+  await glpVault.setRewardsRouter(glpMockRouter1.address);
   await glpVault.setVaultManager(vaultManager.address);
   await glpVault.setVaultKeeper(vaultKeeper.address);
   await glpVault.setLendingPool(pool.address);
@@ -153,7 +156,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await stgy.setHandler(glpVault.address, vaultManager.address, true);
   await stgy.setHandler(glpVault.address, vaultKeeper.address, true);
 
-  await vaultManager.connect(owner).setWhitelist([u1.address, u2.address, u3.address], true);   
+  await vaultManager.connect(owner).setWhitelist([owner.address, u2.address, u3.address], true);   
 
   await stgy.setKeeper(vaultKeeper.address);
 
@@ -187,9 +190,18 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
     await stgy.setRewardManager(oliveManager.address);
     await oliveManager.grantRole(stgy.address);  
 
-
+  await usdc.mint(owner.address, toN(10000, 6))
+  await usdc.approve(pool.address, toN(10000, 6))
+  await pool.supply(toN(10000, 6))
   await glp.mint(u5, toN(10000))
   await usdc.mint(u5, toN(10000, 6))
+
+  await glp.mint(owner.address, toN(10000));
+  await glp.approve(vaultManager.address, toN(10000000));
+  
+  await vaultManager.deposit(toN(2), toN(3), toN(6), toN(0.01));
+  console.log(await vaultManager.getLeverage(owner.address));
+  await vaultManager.deposit(toN(5), toN(5), toN(25), toN(0.01));
 
   await owner.sendTransaction({
     to: u5,

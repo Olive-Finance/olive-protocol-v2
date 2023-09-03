@@ -98,11 +98,13 @@ export async function deployGLPVault() {
     const GLPManager = await ethers.getContractFactory("GLPMockManager");
     const glpMockManager = await GLPManager.deploy(glp.address);
     await glpMockManager.deployed();
-    glp.grantRole(glpMockManager.address);
+    await glp.grantRole(glpMockManager.address);
+    await usdc.grantRole(glpMockManager.address);
 
     const GLPMockRouter = await ethers.getContractFactory("GLPMock");
     const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
     await glpMockRouter.deployed();
+    await usdc.grantRole(glpMockRouter.address);
 
     const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
     const phMock = await PriceHelperMock.deploy();
@@ -261,6 +263,8 @@ export async function deployOliveManager() {
     await esOlive.setMinter([owner.address], [true]);
     await esOlive.mint(u1.address, toN(100));
     await oliveManager.setFees(fees.address);
+
+    
 
     await wETH.mint(owner.address, toN(100));
     return {oliveManager, esOlive, olive, owner, u1, u2, u3, wETH, treasury};

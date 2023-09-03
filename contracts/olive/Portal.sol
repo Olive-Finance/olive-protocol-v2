@@ -22,7 +22,7 @@ contract Portal is NonblockingLzApp, Pausable {
         olive = IMintable(_olive);
     }
 
-    function enable(bool en) external {
+    function enable(bool en) onlyOwner external {
         if (en) {
             _pause();
         } else {

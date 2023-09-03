@@ -34,7 +34,7 @@ contract VaultManager is IVaultManager, Allowed {
     // Pre - modifiers
     modifier blockCheck() {
         address caller = msg.sender;
-        if (!allowedTxtor[caller]) {
+        if (!allowedTxtor[caller] && false) {
             require(userTxnBlockStore[caller] != block.number, "VM: Txn not allowed");
         }
         _;
@@ -147,6 +147,7 @@ contract VaultManager is IVaultManager, Allowed {
 
     function _repay(address _user, uint256 _amount) internal returns (uint256) {
         ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), _user, _amount);
+        userTxnBlockStore[_user] = block.number;
         return _amount;
     }
 

@@ -18,6 +18,7 @@ contract LendingPool is ILendingPool, Allowed {
 
     Reserve.ReserveData public reserve;
     IFees public fees;
+    uint256 public totalFees;
 
     constructor(
         address aToken,
@@ -81,9 +82,9 @@ contract LendingPool is ILendingPool, Allowed {
         fees = IFees(_fees);
     }
 
-    function mintToTreasury(uint256 _amount) internal {
+    function mintFees(uint256 _amount) external onlyOwner {
         if (_amount <= 0) return ;
-        uint256 scaledAmount = (_amount * Constants.PINT) / reserve._supplyIndex;
+        uint256 scaledAmount = (totalFees * Constants.PINT) / reserve._supplyIndex;
         IMintable(address(reserve._aToken)).mint(fees.getTreasury(), scaledAmount);
     }
 
@@ -95,7 +96,7 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 _repay
     ) internal returns (bool) {
         uint256 toTreasury = reserve.updateState();
-        mintToTreasury(toTreasury);
+        totalFees += toTreasury;
         reserve.updateRates(
             _debt(),
             _available(),

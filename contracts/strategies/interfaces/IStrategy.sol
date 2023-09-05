@@ -15,5 +15,7 @@ interface IStrategy {
 
     function setHandler(address _user, address _handler, bool _enabled) external ;
 
+    function getPPS() external view returns (uint256);
+
     event HandlerChanged(address indexed _user, address indexed _handler, bool indexed _enabled);
 }

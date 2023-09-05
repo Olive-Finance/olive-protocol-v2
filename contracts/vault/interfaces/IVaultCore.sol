@@ -14,7 +14,6 @@ interface IVaultCore {
     function getStrategy() external view returns (address);
     function totalDeposits() external view returns (uint256);
 
-    function setPPS(uint256 _pps) external; 
     function mintShares(address _user, uint256 _amount) external;
     function burnShares(address _user, uint256 _amount) external;
     function transferAsset(address _to, uint256 _amount) external;

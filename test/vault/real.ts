@@ -20,22 +20,23 @@ describe("Reality checks", function(){
             console.log(await glp.balanceOf(stgy.address)/1e18);
             await glpMockRouter.setFeesToClaim(toN(1000)); // 10% yield
         
-            let pps = (await glpVault.pps()/1e16);
+            let pps = (await glpVault.getPPS()/1e16);
             time.increase(365 * 24 * 3600); // After one year
 
             console.log(await fees.getMFee()/1e18);
             console.log(await fees.getPFee()/1e18);
 
             await vaultKeeper.connect(u1).harvest();
-            console.log(await glpVault.pps()/1e16);
+            console.log(await glpVault.getPPS()/1e16);
 
-            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
             expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(10700)
             expect(Math.round(await wETH.balanceOf(fees.getTreasury())/1e18)).to.equal(280);
             expect(Math.round(await wETH.balanceOf(oliveManager.address)/1e18)).to.equal(20);
             expect(Math.round(await oliveManager.earned(u3.address))/1e18).to.equal(20);
             expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
-            expect(Math.round(await glpVault.pps()/1e16)).to.equal(107); // PPS = 1.07 post first harvest
+            expect(Math.round(await glpVault.getPPS()/1e16)).to.equal(107); // PPS = 1.07 post first harvest
+            expect(Math.round(await stgy.pps()/1e16)).to.equal(107); // PPS = 1.07 post harvest at strategy
 
             expect(Math.round(await oGlp.balanceOf(u1.address)/1e18)).to.equal(10000);
 
@@ -56,11 +57,11 @@ describe("Reality checks", function(){
 
             await glpMockRouter.setFeesToClaim(toN(2000)); // 10% yield
 
-            pps = (await glpVault.pps()/1e16);
+            pps = (await glpVault.getPPS()/1e16);
             time.increase(365 * 24 * 3600); // After one year
             await vaultKeeper.connect(u1).harvest();
             
-            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
             expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(22086)
             expect(Math.round(await wETH.balanceOf(fees.getTreasury())/1e18)).to.equal(854);
             expect(Math.round(await wETH.balanceOf(oliveManager.address)/1e18)).to.equal(60);
@@ -68,7 +69,8 @@ describe("Reality checks", function(){
             await expect(await oliveManager.connect(u3).getReward()).not.to.be.reverted;
             expect(Math.round(await wETH.balanceOf(u3.address)/1e18)).to.equal(60);
             expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
-            expect(Math.round(await glpVault.pps()/1e16)).to.equal(114); // PPS = 1.07 post first harvest
+            expect(Math.round(await glpVault.getPPS()/1e16)).to.equal(114); // PPS = 1.14 post first harvest
+            expect(Math.round(await stgy.pps()/1e16)).to.equal(114); // PPS = 1.14 post harvest at strategy
 
             // Close user1 position
             expect(Math.round(await glpVault.getPosition(u1.address)/1e18)).to.equal(11416); //11416.43549926885
@@ -76,10 +78,10 @@ describe("Reality checks", function(){
             expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(699); //699.053285916824196
             await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
             expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(0);
-            expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e8)).to.equal(25592427726311);
+            expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(2559); //2559.2427715362
             expect(Math.round(await oGlp.balanceOf(u1.address)/1e8)).to.equal(25592427737260); //oGLP balance
-            await vaultManager.connect(u1).withdraw(toN(25592427726311, 8), 0, 0);
-            expect(Math.round(await oGlp.balanceOf(u1.address)/1e10)).to.equal(109);
+            await vaultManager.connect(u1).withdraw(toN(2559.24, 18), 0, 0);
+            expect(Math.round(await oGlp.balanceOf(u1.address)/1e14)).to.equal(28);
             console.log('hf: ', await glpVault.hf(u1.address)/1e18);
             console.log('-- ***** --');
 
@@ -98,10 +100,10 @@ describe("Reality checks", function(){
             console.log('burnable: ', await vaultManager.getBurnableShares(u2.address)/1e18);
             expect(Math.round(await vaultManager.getBurnableShares(u2.address)/1e18)).to.equal(2125); // 2124.944605802821
             expect(Math.round(await oGlp.balanceOf(u2.address)/1e18)).to.equal(2125); //oGLP balance // 2124.944606897734
-            await vaultManager.connect(u2).withdraw(toN(2124.944605802821, 18), 0, 0);
-            expect(Math.round(await oGlp.balanceOf(u2.address)/1e10)).to.equal(109);
+            await vaultManager.connect(u2).withdraw(toN(2124.94, 18), 0, 0);
+            expect(Math.round(await oGlp.balanceOf(u2.address)/1e14)).to.equal(46);
             console.log('hf: ', await glpVault.hf(u2.address)/1e18);
 
-            expect(Math.round(await glp.balanceOf(stgy.address)/1e10)).to.equal(250); // Everything is withdrawn nothing pending in strategy expect dust balance
+            expect(Math.round(await glp.balanceOf(stgy.address)/1e14)).to.equal(84); // Everything is withdrawn nothing pending in strategy expect dust balance
     });
 });

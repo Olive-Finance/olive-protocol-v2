@@ -267,7 +267,6 @@ export async function deployOliveManager() {
     await oliveManager.setFees(fees.address);
 
     
-
     await wETH.mint(owner.address, toN(100));
     return {oliveManager, esOlive, olive, owner, u1, u2, u3, wETH, treasury};
 }

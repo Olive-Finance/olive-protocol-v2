@@ -61,16 +61,6 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         computeFees();
         IStrategy strategy = IStrategy(vaultCore.getStrategy());
         strategy.harvest();
-        setPricePerShare();
-    }
-
-    // Call post harvest and compound
-    function setPricePerShare() internal {
-        uint256 pps = Constants.PINT;
-        if (vaultManager.totalSupply() != 0) {
-            pps = (vaultManager.balance() * Constants.PINT) / vaultManager.totalSupply();
-        }
-        vaultCore.setPPS(pps);
     }
 
     function liquidation(address _user, uint256 _toRepay, bool _toStake) external onlyLiquidator {

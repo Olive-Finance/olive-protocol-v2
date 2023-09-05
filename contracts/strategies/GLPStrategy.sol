@@ -162,6 +162,10 @@ contract GLPStrategy is IStrategy, Allowed {
         pps = (asset.balanceOf(address(this)) * Constants.PINT)/sToken.totalSupply();
     }
 
+    function getPPS() external view override returns (uint256) {
+        return pps;
+    }
+
     // mint more GLP with the ETH earned as fees
     function mintGlp() internal {
         uint256 rewardBalance = rToken.balanceOf(address(this));

@@ -67,7 +67,7 @@ contract GLPVault is VaultCore {
 
     function getPosition(address _user) public view override returns (uint256) {
         require(_user != address(0), "VM: Invalid address");
-        return (oToken.balanceOf(_user) * pps) / Constants.PINT;
+        return (oToken.balanceOf(_user) * getPPS()) / Constants.PINT;
     }
 
     function getDebt(address _user) public view override returns (uint256) {

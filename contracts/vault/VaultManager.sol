@@ -22,28 +22,14 @@ contract VaultManager is IVaultManager, Allowed {
     // Allowed address for same block transactions
     mapping(address => bool) public allowedTxtor;
 
-    // Following is for beta testing
-    mapping(address => bool) public whitelist;
-    bool public isRestricted;
-
     // Empty constructor
-    constructor() Allowed(msg.sender) {
-        isRestricted = true;
-    }
+    constructor() Allowed(msg.sender) {}
 
     // Pre - modifiers
     modifier blockCheck() {
         address caller = msg.sender;
-        if (!allowedTxtor[caller] && false) {
+        if (!allowedTxtor[caller]) {
             require(userTxnBlockStore[caller] != block.number, "VM: Txn not allowed");
-        }
-        _;
-    }
-
-    // For Beta testing
-    modifier onlyWhitelisted() {
-        if (isRestricted) {
-            require(whitelist[msg.sender], "VK: Not authorised");
         }
         _;
     }
@@ -61,16 +47,6 @@ contract VaultManager is IVaultManager, Allowed {
             "VM: Invalid core"
         );
         vaultCore = IVaultCore(_vaultCore);
-    }
-
-    function setWhitelist(address[] calldata _user, bool _toWhitelist) external onlyOwner {
-        for (uint256 i=0; i<_user.length; i++) {
-            whitelist[_user[i]] = _toWhitelist;
-        }
-    }
-
-    function setRestricted(bool _isRestricted) external onlyOwner {
-        isRestricted = _isRestricted;
     }
 
     function getLeverage(address _user) public view override returns (uint256) {
@@ -113,7 +89,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 c2 = (debt * vaultCore.getMaxLeverage()) /
             (vaultCore.getMaxLeverage() - Constants.PINT);
         c1 = c1 > c2 ? c1 : c2;
-        return position - c1;
+        return ((position - c1) * Constants.PINT) / vaultCore.getPPS();
     }
 
     // Internal functions 
@@ -186,11 +162,14 @@ contract VaultManager is IVaultManager, Allowed {
 
     function _getDebt(address _user, uint256 _curLeverage, uint256 _toLeverage, uint256 _amount) internal view returns (uint256) {
         uint256 collateral = vaultCore.getCollateral(_user);
-        uint256 debt = (collateral * (_toLeverage - _curLeverage)) + (_amount * (_toLeverage - vaultCore.getMinLeverage()));
+        // As the leverage increases based on time, and precision is maintained at 18, this correction is needed. 
+        // This ensures the _toLeverage should always be greater than _curLeverage
+        uint256 newLeverage = _curLeverage > _toLeverage ? _curLeverage: _toLeverage; 
+        uint256 debt = (collateral * (newLeverage - _curLeverage)) + (_amount * (newLeverage - vaultCore.getMinLeverage()));
         return (debt / Constants.PINT); 
     }
 
-    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) whenNotPaused nonReentrant onlyWhitelisted hfCheck internal returns (bool) {
+    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
         require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"

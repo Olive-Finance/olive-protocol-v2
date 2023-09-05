@@ -104,7 +104,7 @@ export async function deployGLPVault() {
     const GLPMockRouter = await ethers.getContractFactory("GLPMock");
     const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
     await glpMockRouter.deployed();
-    await usdc.grantRole(glpMockRouter.address);
+    await usdc.grantRole(glpMockManager.address);
 
     const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
     const phMock = await PriceHelperMock.deploy();
@@ -162,8 +162,7 @@ export async function deployGLPVault() {
 
     await usdc.mint(u3.address, toN(100));
     await usdc.connect(u3).approve(pool.address, toN(10000000000));
-    await pool.connect(u3).supply(toN(1));
-    await vaultManager.connect(owner).setWhitelist([u1.address, u2.address, u3.address], true);   
+    await pool.connect(u3).supply(toN(1));  
 
     return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, 
         rcl, pool, glp, wETH, sGlp, stgy, oGlp, glpVault, vaultManager, vaultKeeper, phMock, glpMockManager, fees, glpMockRouter}
@@ -210,7 +209,8 @@ export async function deployGLPVaultKeeper() {
     await oliveManager.grantRole(stgy.address);
 
     await usdc.mint(u2.address, toN(100));
-    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, stgy, wETH, glpMockRouter};
+    return {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, pool,
+         glpMockManager, vaultKeeper, vaultManager, glpVault, fees, stgy, wETH, glpMockRouter};
 }
 
 export async function setupLendingPool() {

@@ -258,8 +258,3 @@ const config: HardhatUserConfig = {
 };
 
 export default config;
-
-
-// await vaultManager.leverage(ethers.utils.parseUnits('5', 18), 0, 0)
-
-// 0x55b587b0d01e5D66E85e1e8e9FD509052BB2A1D3

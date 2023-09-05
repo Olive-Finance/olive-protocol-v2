@@ -49,6 +49,11 @@ contract VaultManager is IVaultManager, Allowed {
         vaultCore = IVaultCore(_vaultCore);
     }
 
+    function setSameBlockTxnFor(address _user, bool _toAllow) external onlyOwner {
+        require(_user != address(0), "VM: Invalid user");
+        allowedTxtor[_user] = _toAllow;
+    }
+
     function getLeverage(address _user) public view override returns (uint256) {
         uint256 posValue = vaultCore.getPosition(_user);
         uint256 debt = vaultCore.getDebt(_user);
@@ -243,6 +248,7 @@ contract VaultManager is IVaultManager, Allowed {
         vaultCore.burnShares(_user, _shares);
         uint256 value = _redeem(_shares);
         vaultCore.transferAsset(_user, value);
+        userTxnBlockStore[_user] = block.number;
         return value;
     }
 

@@ -166,7 +166,7 @@ contract GLPStrategy is IStrategy, Allowed {
     function mintGlp() internal {
         uint256 rewardBalance = rToken.balanceOf(address(this));
         rToken.approve(glpRouter.glpManager(), rewardBalance);
-        glpRouter.mintAndStakeGlp(address(rToken), rewardBalance, 0, 0);
+        assetBalance += glpRouter.mintAndStakeGlp(address(rToken), rewardBalance, 0, 0);
     }
 
     function balance() external view override returns (uint256) {

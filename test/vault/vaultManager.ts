@@ -15,7 +15,6 @@ describe("VaultManager checks", function(){
     describe("Deposit checks", function(){
         it("Deposit 1000GLP, no leverage", async function(){
             const {owner, glp, u1, vaultManager, oGlp} = await loadFixture(deployGLPVault);
-            console.log(await glp.balanceOf(u1.address)/1e18);
             await vaultManager.connect(u1).deposit(toN(1000), toN(1), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(1000));
             expect(await glp.balanceOf(u1.address)).to.equal(0);

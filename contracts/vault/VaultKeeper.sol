@@ -85,9 +85,9 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         } else {
             toLiquidator = handleBadDebt(liquidator, _user, debt, position, _toRepay);
         }
-        _transfer(liquidator, toLiquidator, _toStake);
+        _transfer(liquidator, _toShares(toLiquidator), _toStake);
         if (toTreasury > 0) {
-            _transfer(fees.getTreasury(), toTreasury, true);
+            _transfer(fees.getTreasury(), _toShares(toTreasury), true);
         }
     }
 
@@ -100,7 +100,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         if (_position - toPayInAsset < feeInAsset) {
             feeInAsset = _position - toPayInAsset;
         } 
-        vaultCore.burnShares(_user, feeInAsset + toPayInAsset);
+        vaultCore.burnShares(_user, _toShares(feeInAsset + toPayInAsset));
         _repay(_liquidator, _user, toPay);
         liquidatorFee = (feeInAsset * fees.getLiquidatorFee())/Constants.HUNDRED_PERCENT;
         return (toPayInAsset + liquidatorFee, feeInAsset - liquidatorFee);
@@ -109,9 +109,13 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     function handleBadDebt(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay) internal returns (uint256) {
         uint256 toPay = min(_debtInWant, _toRepay);
         uint256 toTransfer = (_position * toPay) / _debtInWant;
-        vaultCore.burnShares(_user, toTransfer);
+        vaultCore.burnShares(_user, _toShares(toTransfer));
         _repay(_liquidator, _user, toPay);
         return toTransfer;
+    }
+
+    function _toShares(uint256 _amount) internal view returns (uint256) {
+        return (_amount * Constants.PINT) / vaultCore.getPPS();
     }
 
     function _transfer(address _liquidator, uint256 _shares, bool _toStake) internal {

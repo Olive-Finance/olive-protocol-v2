@@ -131,6 +131,11 @@ export async function deployGLPVault() {
     await glpVault.setPriceHelper(phMock.address);
     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
     await glpVault.setStrategy(stgy.address);
+
+    const ArbSysMock = await ethers.getContractFactory("ArbSysMock");
+    const arbSys = await ArbSysMock.deploy();
+    await arbSys.deployed();
+    await glpVault.setArbSysAddress(arbSys.address);
     
     await oGlp.grantRole(glpVault.address);
 

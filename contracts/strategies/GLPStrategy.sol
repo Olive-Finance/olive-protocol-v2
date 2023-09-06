@@ -193,4 +193,4 @@ contract GLPStrategy is IStrategy, Allowed {
         harvest();
         asset.transfer(_to, asset.balanceOf(address(this)));
     }
-}
+}   

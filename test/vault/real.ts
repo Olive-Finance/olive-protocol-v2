@@ -106,4 +106,107 @@ describe("Reality checks", function(){
 
             expect(Math.round(await glp.balanceOf(stgy.address)/1e14)).to.equal(84); // Everything is withdrawn nothing pending in strategy expect dust balance
     });
+
+
+    it("12% APY - Target PPS : ~1.088", async function(){
+        const {owner, u1, u2, u3, usdc, glp, wETH, phMock, pool, oGlp,
+             vaultKeeper, vaultManager, glpVault, fees, stgy, glpMockRouter, oliveManager} = await loadFixture(deployGLPVaultKeeper);
+
+            // deposit 10000 tokens at 5x leverage
+            await glp.approve(vaultManager.address, toN(9900));
+            await glp.mint(u1.address, toN(9900));
+            await vaultManager.connect(u1).deposit(toN(1900), toN(5), 0, 0);
+            
+            // 10% APY 
+            console.log(await usdc.balanceOf(pool.address)/1e6);
+            await phMock.setPriceOf(wETH.address, toN(1));
+            console.log(await glp.balanceOf(stgy.address)/1e18);
+            await glpMockRouter.setFeesToClaim(toN(1200)); // 12% yield
+        
+            let pps = (await glpVault.getPPS()/1e16);
+            time.increase(365 * 24 * 3600); // After one year
+
+            console.log(await fees.getMFee()/1e18);
+            console.log(await fees.getPFee()/1e18);
+
+            await vaultKeeper.connect(u1).harvest();
+            console.log(await glpVault.getPPS()/1e16);
+
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
+            expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(10880)
+            expect(Math.round(await wETH.balanceOf(fees.getTreasury())/1e18)).to.equal(296);
+            expect(Math.round(await wETH.balanceOf(oliveManager.address)/1e18)).to.equal(24);
+            expect(Math.round(await oliveManager.earned(u3.address))/1e18).to.equal(24);
+            expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
+            expect(Math.round(await glpVault.getPPS()/1e16)).to.equal(109); // PPS = 1.088 post first harvest
+            expect(Math.round(await stgy.pps()/1e16)).to.equal(109); // PPS = 1.088 post harvest at strategy
+
+            expect(Math.round(await oGlp.balanceOf(u1.address)/1e18)).to.equal(10000);
+
+            // Close user position
+            console.log('-- user1 --');
+            console.log('Postion: ', await glpVault.getPosition(u1.address)/1e18);
+            console.log('Debt', await glpVault.getDebt(u1.address)/1e18);
+
+            // Continued testing where u2 deposits
+
+            // deposit 10000 tokens at 5x leverage
+            await glp.connect(u2).approve(vaultManager.address, toN(9900));
+            await glp.mint(u2.address, toN(2000));
+            await vaultManager.connect(u2).deposit(toN(100), toN(5), 0, 0);
+
+            expect(Math.round(await oGlp.balanceOf(u2.address)/1e16)).to.equal(45956);
+            expect(Math.round(await glpVault.getPosition(u2.address)/1e18)).to.equal(500);
+
+            await glpMockRouter.setFeesToClaim(toN(2048.4)); // 18% yield
+
+            pps = (await glpVault.getPPS()/1e16);
+            time.increase(365 * 24 * 3600); // After one year
+            await vaultKeeper.connect(u1).harvest();
+            
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
+            expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(12996)
+            expect(Math.round(await wETH.balanceOf(fees.getTreasury())/1e18)).to.equal(687);
+            expect(Math.round(await wETH.balanceOf(oliveManager.address)/1e15)).to.equal(64968);
+            expect(Math.round(await oliveManager.earned(u3.address))/1e15).to.equal(64968);
+            await expect(await oliveManager.connect(u3).getReward()).not.to.be.reverted;
+            expect(Math.round(await wETH.balanceOf(u3.address)/1e18)).to.equal(65);
+            expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
+            expect(Math.round(await glpVault.getPPS()/1e16)).to.equal(124); // PPS = 1.24 post first harvest
+            expect(Math.round(await stgy.pps()/1e16)).to.equal(124); // PPS = 1.24 post harvest at strategy
+
+            // Close user1 position
+            expect(Math.round(await glpVault.getPosition(u1.address)/1e18)).to.equal(12425); 
+            expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(8495); //8494.692708
+            expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(1454); 
+            await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
+            expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(0);
+            expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(3163);
+            expect(Math.round(await oGlp.balanceOf(u1.address)/1e8)).to.equal(31632037866692); //oGLP balance
+            await vaultManager.connect(u1).withdraw(toN(3163.20, 18), 0, 0);
+            expect(Math.round(await oGlp.balanceOf(u1.address)/1e14)).to.equal(38);
+            console.log('hf: ', await glpVault.hf(u1.address)/1e18);
+            console.log('-- ***** --');
+
+            // close user2 position
+            console.log('-- user2 --');
+            console.log('Postion: ', await glpVault.getPosition(u2.address)/1e18);
+            console.log('Debt', await glpVault.getDebt(u2.address)/1e18);
+            console.log('Debt', await vaultManager.getLeverage(u2.address)/1e18);
+
+            // Close user2 position
+            expect(Math.round(await glpVault.getPosition(u2.address)/1e18)).to.equal(571); 
+            expect(Math.round(await glpVault.getDebt(u2.address)/1e18)).to.equal(412); 
+            expect(Math.round(await vaultManager.getBurnableShares(u2.address)/1e18)).to.equal(45); 
+            await vaultManager.connect(u2).deleverage(toN(1), 0, 0);
+            expect(Math.round(await glpVault.getDebt(u2.address)/1e18)).to.equal(0);
+            console.log('burnable: ', await vaultManager.getBurnableShares(u2.address)/1e18);
+            expect(Math.round(await vaultManager.getBurnableShares(u2.address)/1e18)).to.equal(128); //127.82189521
+            expect(Math.round(await oGlp.balanceOf(u2.address)/1e18)).to.equal(128); //oGLP balance 
+            await vaultManager.connect(u2).withdraw(toN(127.82, 18), 0, 0);
+            expect(Math.round(await oGlp.balanceOf(u2.address)/1e14)).to.equal(19);
+            console.log('hf: ', await glpVault.hf(u2.address)/1e18);
+
+            expect(Math.round(await glp.balanceOf(stgy.address)/1e14)).to.equal(71); // Everything is withdrawn nothing pending in strategy expect dust balance
+    });
 });

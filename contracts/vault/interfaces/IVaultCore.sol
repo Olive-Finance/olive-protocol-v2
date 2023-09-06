@@ -37,4 +37,6 @@ interface IVaultCore {
 
     function hf(address _user) external view returns (uint256);
     function isHealthy(address _user) external view returns (bool);
+
+    function blockNumber() external view returns (uint256);
 }

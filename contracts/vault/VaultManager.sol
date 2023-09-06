@@ -29,7 +29,7 @@ contract VaultManager is IVaultManager, Allowed {
     modifier blockCheck() {
         address caller = msg.sender;
         if (!allowedTxtor[caller]) {
-            require(userTxnBlockStore[caller] != block.number, "VM: Txn not allowed");
+            require(userTxnBlockStore[caller] != vaultCore.blockNumber(), "VM: Txn not allowed");
         }
         _;
     }
@@ -122,13 +122,13 @@ contract VaultManager is IVaultManager, Allowed {
     function _mint(address _user, uint256 _amount) internal returns (uint256) {
         uint256 _shares = (_amount * Constants.PINT) / vaultCore.getPPS();
         vaultCore.mintShares(_user, _shares);
-        userTxnBlockStore[_user] = block.number;
+        userTxnBlockStore[_user] = vaultCore.blockNumber();
         return _shares;
     }
 
     function _repay(address _user, uint256 _amount) internal returns (uint256) {
         ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), _user, _amount);
-        userTxnBlockStore[_user] = block.number;
+        userTxnBlockStore[_user] = vaultCore.blockNumber();
         return _amount;
     }
 
@@ -248,7 +248,7 @@ contract VaultManager is IVaultManager, Allowed {
         vaultCore.burnShares(_user, _shares);
         uint256 value = _redeem(_shares);
         vaultCore.transferAsset(_user, value);
-        userTxnBlockStore[_user] = block.number;
+        userTxnBlockStore[_user] = vaultCore.blockNumber();
         return value;
     }
 

@@ -131,13 +131,20 @@ contract GLPStrategy is IStrategy, Allowed {
         uint256 mFees = vaultCore.getTokenValueforAsset(address(rToken), fees.getAccumulatedFee());
         uint256 toOliveHolders = (pFees * fees.getRewardRateForOliveHolders()) / Constants.HUNDRED_PERCENT;
         chargeManagementFee(((yield * 5)/10) - pFees, mFees); // Max cap is 50% of yield
-        rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);
-        rToken.transfer(address(oliveRewards), toOliveHolders);
-        oliveRewards.notifyRewardAmount(toOliveHolders);
+
+        if (pFees - toOliveHolders > 0) { // transfer only for non-zero fees
+             rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);
+        }
+
+        if (toOliveHolders > 0) { // transfer only for non-zero fees
+            rToken.transfer(address(oliveRewards), toOliveHolders);
+            oliveRewards.notifyRewardAmount(toOliveHolders);
+        }
     }
 
     function chargeManagementFee(uint256 _limit, uint256 _accruedFees) internal {
         uint256 managementfee = _limit > _accruedFees ? _accruedFees: _limit;
+        if (managementfee == 0) return; // Protection for no fees when management fees are kept at zero
         rToken.transfer(fees.getTreasury(), managementfee);
         if ( _limit > _accruedFees) {
             fees.setFee(0, block.timestamp);

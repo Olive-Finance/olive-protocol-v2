@@ -19,6 +19,7 @@ contract LendingPool is ILendingPool, Allowed {
     Reserve.ReserveData public reserve;
     IFees public fees;
     uint256 public totalFees;
+    uint256 public badDebt;
 
     constructor(
         address aToken,
@@ -77,6 +78,19 @@ contract LendingPool is ILendingPool, Allowed {
         return (reserve.getNormalizedIncome() * balance) / Constants.PINT;
     }
 
+    function debtCorrection() public view returns (uint256) {
+        uint256 totalSupplied = (reserve.getNormalizedIncome() * reserve._aToken.totalSupply()) / Constants.PINT;
+        if (badDebt >= totalSupplied) return Constants.ZERO;
+        return ((totalSupplied - badDebt) * Constants.PINT) / totalSupplied;
+    }
+
+    function repayBadDebt(uint256 _amount) external {
+        require(_amount > 0, "POL: Zero/Negative amount");
+        uint256 toRepay = _amount > badDebt ? badDebt : _amount;
+        reserve._want.transferFrom(msg.sender, address(this), toRepay);
+        badDebt -= toRepay;
+    }
+
     function setFees(address _fees) external onlyOwner {
         require(_fees != address(0), "POL: Invalid fees address");
         fees = IFees(_fees);
@@ -116,18 +130,13 @@ contract LendingPool is ILendingPool, Allowed {
         require(_to != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
+        require(_amount <= _available(), "POL: Insufficient liquidity to borrow");
 
         updateReserve(uint256(0), uint256(0), _amount, uint256(0));
 
-        IERC20 dToken = reserve._dToken;
-        IMintable doToken = IMintable(address(dToken));
-
         uint256 scaledBalance = (_amount * Constants.PINT) / reserve._borrowIndex;
-
-        doToken.mint(_user, scaledBalance);
-
-        IERC20 want = reserve._want;
-        want.transfer(_to, _amount);
+        IMintable(address(reserve._dToken)).mint(_user, scaledBalance);
+        reserve._want.transfer(_to, _amount);
 
         return _amount;
     }
@@ -141,15 +150,9 @@ contract LendingPool is ILendingPool, Allowed {
 
         updateReserve(_amount, uint256(0), uint256(0), uint256(0));
 
-        IERC20 want = reserve._want;
-        want.transferFrom(_user, address(this), _amount);
-
+        reserve._want.transferFrom(_user, address(this), _amount);
         uint256 scaledAmount = (_amount * Constants.PINT) / reserve._supplyIndex;
-
-        IERC20 aToken = reserve._aToken;
-        IMintable maToken = IMintable(address(aToken));
-
-        maToken.mint(_user, scaledAmount);
+        IMintable(address(reserve._aToken)).mint(_user, scaledAmount);
 
         return true;
     }
@@ -164,12 +167,13 @@ contract LendingPool is ILendingPool, Allowed {
         updateReserve(uint256(0), value, uint256(0), uint256(0));
 
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
-        
-        IMintable maToken = IMintable(address(aToken));
-        maToken.burn(_user, _shares);
 
-        IERC20 want = reserve._want;
-        want.transfer(_user, wantAmount);
+        // Socialising the bad debt
+        wantAmount = (wantAmount * debtCorrection()) / Constants.PINT;
+        require(wantAmount <= _available(), "POL: Insufficient liquidity to withdraw");
+        
+        IMintable(address(aToken)).burn(_user, _shares);
+        reserve._want.transfer(_user, wantAmount);
 
         return true;
     }
@@ -178,21 +182,42 @@ contract LendingPool is ILendingPool, Allowed {
         address _from,
         address _user,
         uint256 _amount // Want token
-    ) external override whenNotPaused nonReentrant returns (bool) {
+    ) external override returns (bool) {
+        return _repayDebt(_from, _user, _amount);
+    }
+
+    function _repayDebt(
+        address _from,
+        address _user,
+        uint256 _amount
+    ) internal whenNotPaused nonReentrant returns (bool) {
         require(_amount > 0, "POL: Zero/Negative amount");
         require(_user != address(0), "POL: Null address");
 
         updateReserve(uint256(0), uint256(0), uint256(0), _amount);
          
         uint256 burnableShares = (_amount * Constants.PINT) / reserve._borrowIndex ;
+        reserve._want.transferFrom(_from, address(this), _amount);
 
-        IERC20 want = reserve._want;
-        want.transferFrom(_from, address(this), _amount);
+        IMintable(address(reserve._dToken)).burn(_user, burnableShares);
+        return true;
+    }
 
-        IERC20 dToken = reserve._dToken;
-        IMintable doToken = IMintable(address(dToken));
-        doToken.burn(_user, burnableShares);
+    function _settle(address _user) internal {
+        uint256 debt = reserve._dToken.balanceOf(_user);
+        if (debt == 0) return;
+        uint256 _bDebt = (debt * reserve.getNormalizedDebt()) / Constants.PINT;
+        badDebt += _bDebt;
+        IMintable(address(reserve._dToken)).burn(_user, debt);
+    }
 
+    function repayWithSettle(
+        address _from, 
+        address _user, 
+        uint256 amount
+    ) external override onlyAllowed returns (bool) {
+        _repayDebt(_from, _user, amount);
+        _settle(_user);
         return true;
     }
 }

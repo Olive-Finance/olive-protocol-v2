@@ -8,6 +8,7 @@ interface ILendingPool {
     function withdraw(uint256 _shares) external returns (bool);
     function borrow(address _to, address _user, uint256 _amount) external returns (uint256);
     function repay(address _from, address _user, uint256 _amount) external returns (bool);
+    function repayWithSettle(address _from, address _user, uint256 _amount) external returns (bool);
 
     // View functions
     function borrowRate() external view returns (uint256);

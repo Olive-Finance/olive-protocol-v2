@@ -131,6 +131,8 @@ export async function deployGLPVault() {
     await glpVault.setPriceHelper(phMock.address);
     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
     await glpVault.setStrategy(stgy.address);
+
+    await pool.grantRole(vaultKeeper.address); // For enabling the settle
     
     // set allowances
     await glpVault.setAllowance(glp.address, stgy.address, true);

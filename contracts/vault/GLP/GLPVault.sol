@@ -45,7 +45,6 @@ contract GLPVault is VaultCore {
     function buy(address _tokenIn, uint256 _amount) external whenNotPaused nonReentrant onlyMoK returns (uint256) {
         require(_tokenIn != address(0) && _amount > 0, "GLPC: Invalid inputs");
         require(IERC20(_tokenIn).balanceOf(address(this)) > 0, "GLPC: Insufficient balance");
-        IERC20(_tokenIn).approve(glpRouter.glpManager(), _amount);
         return glpRouter.mintAndStakeGlp(_tokenIn, _amount, 0, 0);
     }
 
@@ -53,7 +52,6 @@ contract GLPVault is VaultCore {
         require(_tokenOut != address(0) && _amount > 0, "GLPC: Invalid inputs");
         require(asset.balanceOf(address(this)) > 0, "GLPC: Insufficient balance");
         uint256 wantValue = glpRouter.unstakeAndRedeemGlp(_tokenOut, _amount, 0, address(this));
-        IERC20(_tokenOut).approve(lendingPool, wantValue); // For lendingpool to transfer the tokens
         return wantValue;
     }
 
@@ -104,7 +102,7 @@ contract GLPVault is VaultCore {
         return hf(_user) >= HF_THRESHOLD;
     }
 
-    function setAllowance(bool max, address token, address spender) external onlyOwner {
+    function setAllowance(address token, address spender, bool max) external onlyOwner {
         require(token != address(0) && spender != address(0), "GLPC: Invalid addresses");
         IERC20(token).approve(spender, max ? Constants.MAX_INT : 0);
     }

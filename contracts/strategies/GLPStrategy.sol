@@ -26,9 +26,6 @@ contract GLPStrategy is IStrategy, Allowed {
     uint256 public lastHarvest;
     uint256 public pps;
     address public keeper;
-    
-    // Ledger for validating transfers
-    uint256 public assetBalance;
 
     IFees public fees;
 
@@ -93,8 +90,7 @@ contract GLPStrategy is IStrategy, Allowed {
 
     function deposit(address _user, uint256 _amount) external override whenNotPaused nonReentrant onlyAllowed onlyHandler(_user)   {
         require(_amount > 0, "STR: Zero/Negative amount");
-        require(asset.balanceOf(address(this)) - assetBalance >= _amount, "STR: No token transfer");
-        assetBalance += _amount;
+        require(asset.transferFrom(_user, address(this), _amount), "STR: No token transfer");
         IMintable soToken = IMintable(address(sToken));
         soToken.mint(_user, getShares(_amount));
     }
@@ -112,7 +108,6 @@ contract GLPStrategy is IStrategy, Allowed {
         require(sToken.balanceOf(_user) >= _shares, "STR: Insufficient balance");
         IMintable(address(sToken)).burn(_user, _shares);
         uint256 amount = getAmount(_shares);
-        assetBalance -= amount;
         asset.transfer(_user, amount);
         return amount;
     }
@@ -135,11 +130,7 @@ contract GLPStrategy is IStrategy, Allowed {
         uint256 pFees = (yield * fees.getPFee())/ Constants.HUNDRED_PERCENT;
         uint256 mFees = vaultCore.getTokenValueforAsset(address(rToken), fees.getAccumulatedFee());
         uint256 toOliveHolders = (pFees * fees.getRewardRateForOliveHolders()) / Constants.HUNDRED_PERCENT;
-        uint256 feeLimit =  ((yield * 5)/10) - pFees;
-        if(feeLimit > pFees) {
-            chargeManagementFee(feeLimit, mFees);
-        }
-
+        chargeManagementFee(((yield * 5)/10) - pFees, mFees); // Max cap is 50% of yield
         rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);
         rToken.transfer(address(oliveRewards), toOliveHolders);
         oliveRewards.notifyRewardAmount(toOliveHolders);
@@ -170,7 +161,7 @@ contract GLPStrategy is IStrategy, Allowed {
     function mintGlp() internal {
         uint256 rewardBalance = rToken.balanceOf(address(this));
         rToken.approve(glpRouter.glpManager(), rewardBalance);
-        assetBalance += glpRouter.mintAndStakeGlp(address(rToken), rewardBalance, 0, 0);
+        glpRouter.mintAndStakeGlp(address(rToken), rewardBalance, 0, 0);
     }
 
     function balance() external view override returns (uint256) {

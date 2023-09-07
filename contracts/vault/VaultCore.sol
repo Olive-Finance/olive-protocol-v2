@@ -164,10 +164,6 @@ abstract contract VaultCore is IVaultCore, Allowed {
         _transfer(_to, _amount);
     }
 
-    function transferToStrategy(uint256 _amount) external onlyMoK {
-        _transfer(strategy, _amount);
-    }
-
     function _transfer(address _to, uint256 _amount) internal whenNotPaused {
         require(
             asset.balanceOf(address(this)) >= _amount,

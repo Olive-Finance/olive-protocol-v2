@@ -102,7 +102,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
             feeInAsset = _position - toPayInAsset;
         } 
         vaultCore.burnShares(_user, _toShares(feeInAsset + toPayInAsset));
-        _repay(_liquidator, _user, toPay, false);
+        _repay(_liquidator, _user, toPay, 0);
         liquidatorFee = (feeInAsset * fees.getLiquidatorFee())/Constants.HUNDRED_PERCENT;
         return (toPayInAsset + liquidatorFee, feeInAsset - liquidatorFee);
     }
@@ -110,8 +110,9 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     function handleBadDebt(address _liquidator, address _user, uint256 _position, uint256 _positionInWant, uint256 _toRepay) internal returns (uint256) {
         uint256 toPay = min(_positionInWant, _toRepay);
         uint256 toTransfer = (_position * toPay) / _positionInWant;
+        uint256 sFactor = (toTransfer * Constants.PINT) / _position; // sFactor - is settlement factor
         vaultCore.burnShares(_user, _toShares(toTransfer));
-        _repay(_liquidator, _user, toPay, true);
+        _repay(_liquidator, _user, toPay, sFactor);
         return toTransfer;
     }
 
@@ -129,10 +130,10 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultCore.transferAsset(_liquidator, sold);
     }
 
-    function _repay(address _liquidator, address _user, uint256 _amount, bool toSettle) internal {
+    function _repay(address _liquidator, address _user, uint256 _amount, uint256 _sFactor) internal {
         ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
-        if (toSettle) {
-             pool.repayWithSettle(_liquidator, _user, _amount);
+        if (_sFactor > 0) {
+             pool.repayWithSettle(_liquidator, _user, _amount, _sFactor);
         } else {
             pool.repay(_liquidator, _user, _amount);
         }

@@ -9,6 +9,7 @@ library Constants {
     uint256 constant MAX_INT = type(uint256).max;
     uint256 constant HUNDRED_PERCENT = 100e18; //100
     uint256 constant FIFTY_PERCENT = 50e18; //100
+    uint256 constant PINT_POW_2 = 1e36; //PINT**2
 
     // Thresholds
     uint256 constant LIQUIDATION_THRESHOLD = 0.9e18;

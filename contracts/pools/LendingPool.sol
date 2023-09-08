@@ -209,21 +209,23 @@ contract LendingPool is ILendingPool, Allowed {
         return true;
     }
  
-    function _settle(address _user) internal {
+    function _settle(address _user, uint256 _sFactor) internal {
         uint256 debt = reserve._dToken.balanceOf(_user);
         if (debt == 0) return;
-        uint256 _bDebt = (debt * reserve.getNormalizedDebt()) / Constants.PINT;
+        uint256 _bDebt = (debt * reserve.getNormalizedDebt() * _sFactor) / Constants.PINT_POW_2;
         badDebt += _bDebt; 
         IMintable(address(reserve._dToken)).burn(_user, debt);
+        emit BadDebt(_user, _bDebt);
     }
 
     function repayWithSettle(
         address _from, 
         address _user, 
-        uint256 amount
+        uint256 _amount,
+        uint256 _sFactor
     ) external override onlyAllowed returns (bool) {
-        _repayDebt(_from, _user, amount);
-        _settle(_user);
+        _repayDebt(_from, _user, _amount);
+        _settle(_user, _sFactor);
         return true;
     }
 }

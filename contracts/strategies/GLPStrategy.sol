@@ -130,7 +130,7 @@ contract GLPStrategy is IStrategy, Allowed {
         uint256 pFees = (yield * fees.getPFee())/ Constants.HUNDRED_PERCENT;
         uint256 mFees = vaultCore.getTokenValueforAsset(address(rToken), fees.getAccumulatedFee());
         uint256 toOliveHolders = (pFees * fees.getRewardRateForOliveHolders()) / Constants.HUNDRED_PERCENT;
-        chargeManagementFee(((yield * 5)/10) - pFees, mFees); // Max cap is 50% of yield
+        chargeManagementFee(((yield * Constants.FIFTY_PERCENT)/Constants.HUNDRED_PERCENT) - pFees, mFees); // Max cap is 50% of yield
 
         if (pFees - toOliveHolders > 0) { // transfer only for non-zero fees
              rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);

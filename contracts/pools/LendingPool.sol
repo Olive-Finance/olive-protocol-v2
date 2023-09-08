@@ -75,7 +75,7 @@ contract LendingPool is ILendingPool, Allowed {
         if (balance == 0) {
             return balance;
         }
-        return (reserve.getNormalizedIncome() * balance) / Constants.PINT;
+        return (reserve.getNormalizedIncome() * balance)/Constants.PINT;
     }
 
     function debtCorrection() public view returns (uint256) {
@@ -169,7 +169,13 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
 
         // Socialising the bad debt
-        wantAmount = (wantAmount * debtCorrection()) / Constants.PINT;
+        // todo : add test case with burning all the supply tokens - badDebt should be zero (Given there are no dTokens in circulation)
+        // todo : debtConnection factor should be same for all the users - validate this as test case
+
+        uint256 dc = debtCorrection(); 
+        badDebt -= wantAmount * (Constants.PINT - dc)/Constants.PINT;
+        wantAmount = (wantAmount * dc) / Constants.PINT;
+        
         require(wantAmount <= _available(), "POL: Insufficient liquidity to withdraw");
         
         IMintable(address(aToken)).burn(_user, _shares);
@@ -202,12 +208,12 @@ contract LendingPool is ILendingPool, Allowed {
         IMintable(address(reserve._dToken)).burn(_user, burnableShares);
         return true;
     }
-
+ 
     function _settle(address _user) internal {
         uint256 debt = reserve._dToken.balanceOf(_user);
         if (debt == 0) return;
         uint256 _bDebt = (debt * reserve.getNormalizedDebt()) / Constants.PINT;
-        badDebt += _bDebt;
+        badDebt += _bDebt; 
         IMintable(address(reserve._dToken)).burn(_user, debt);
     }
 

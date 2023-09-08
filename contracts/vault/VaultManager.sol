@@ -98,7 +98,7 @@ contract VaultManager is IVaultManager, Allowed {
     }
 
     // Internal functions 
-    function hasExccess (
+    function hasExcess (
         uint256 _expected,
         uint256 _actual,
         uint256 _tolarance
@@ -187,7 +187,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 toDeposit = bought + _amount;
         _deploy(toDeposit);
         uint256 minted = _mint(_user, toDeposit);
-        require(hasExccess(_expShares, minted, _slippage), "VM: Position slipped"); 
+        require(hasExcess(_expShares, minted, _slippage), "VM: Position slipped"); 
         emit Deposit(address(this), _user, toDeposit);
         return true;
     }
@@ -200,7 +200,7 @@ contract VaultManager is IVaultManager, Allowed {
         address _user = msg.sender;
         uint256 _userLeverage = getLeverage(_user);
         uint256 paid = _deleverageForUser(_user, _leverage);
-        require(hasExccess(_repayAmount, paid, _slippage), "VM: Postion slipped");
+        require(hasExcess(_repayAmount, paid, _slippage), "VM: Postion slipped");
         emit Leverage(address(this), _user, _userLeverage, _leverage);
         return true;
     }
@@ -224,7 +224,7 @@ contract VaultManager is IVaultManager, Allowed {
     ) external override whenNotPaused nonReentrant blockCheck hfCheck returns (bool) {
         address _user = msg.sender;
         uint256 redeemed = _withdrawForUser(_user, _shares);
-        require(hasExccess(_expTokens, redeemed, _slippage), "VM: Postion slipped");
+        require(hasExcess(_expTokens, redeemed, _slippage), "VM: Postion slipped");
         emit Withdraw(address(this), _user, redeemed);
         return true;
     }

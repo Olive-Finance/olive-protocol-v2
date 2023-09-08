@@ -35,7 +35,6 @@ contract Portal is NonblockingLzApp, Pausable {
         uint256 _amount
     ) public payable whenNotPaused {
         address _user = msg.sender;
-        require(_user != address(0), "Portal: Invalid user address");
         require(_amount > 0, "Portal: Invalid amount");
         require(IERC20(address(olive)).balanceOf(_user) >= _amount, "Portal: Insufficient olive balance");
         require(msg.value > 0, "the balance of this contract is 0. pls send gas for message fees");

@@ -40,6 +40,7 @@ contract PriceHelper is IPriceHelper, Governable {
         require(_token != address(this) && _feed != address(this), "PHLP: Invalid address");
         require(_gracePeriod >= 1 hours && _gracePeriod <= 24 hours, "PHLP: Invalid grace period");
         feeds[_token] = _feed;
+        gracePeriods[_token] = _gracePeriod;
     }
 
     function isSequencerActive() public view returns (bool) {

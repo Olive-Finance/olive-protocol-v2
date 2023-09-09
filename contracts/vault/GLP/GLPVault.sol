@@ -9,16 +9,28 @@ import {IPriceHelper} from "../../helper/interfaces/IPriceHelper.sol";
 import {ILendingPool} from "../../pools/interfaces/ILendingPool.sol";
 import {IGLPRouter, IGLPManager} from "../../strategies/GLP/interfaces/IGMXRouter.sol";
 
+import {ArbSys} from "../../interfaces/IArbSys.sol";
 import {VaultCore} from "../VaultCore.sol";
 
 contract GLPVault is VaultCore {
     IGLPRouter public glpRouter;
     IPriceHelper public priceHelper;
 
-    uint256 public constant GLP_PRICE_PRECISION = 10 ** 30; // Price precision in GLP
+    uint256 public GLP_PRICE_PRECISION = 10 ** 30; // Price precision in GLP
+    address public arbSysAddress = address(100);
 
     // Empty constructor
     constructor() VaultCore(msg.sender) {}
+
+    function setArbSysAddress(address _arbSysAddress) external onlyOwner {
+        require(_arbSysAddress != address(0), "GLPC: Invalid Arb System address");
+        arbSysAddress = _arbSysAddress;
+    }
+
+    function setGLPPrecision(uint256 _precision) external onlyOwner {
+        require(_precision > 0, "GLPC: Invalid precision");
+        GLP_PRICE_PRECISION = _precision;
+    }
 
     function setRewardsRouter(address _glpRouter) external onlyOwner {
         require(_glpRouter != address(0), "GLPC: Invalid router");
@@ -33,7 +45,6 @@ contract GLPVault is VaultCore {
     function buy(address _tokenIn, uint256 _amount) external whenNotPaused nonReentrant onlyMoK returns (uint256) {
         require(_tokenIn != address(0) && _amount > 0, "GLPC: Invalid inputs");
         require(IERC20(_tokenIn).balanceOf(address(this)) > 0, "GLPC: Insufficient balance");
-        IERC20(_tokenIn).approve(glpRouter.glpManager(), _amount);
         return glpRouter.mintAndStakeGlp(_tokenIn, _amount, 0, 0);
     }
 
@@ -41,7 +52,6 @@ contract GLPVault is VaultCore {
         require(_tokenOut != address(0) && _amount > 0, "GLPC: Invalid inputs");
         require(asset.balanceOf(address(this)) > 0, "GLPC: Insufficient balance");
         uint256 wantValue = glpRouter.unstakeAndRedeemGlp(_tokenOut, _amount, 0, address(this));
-        IERC20(_tokenOut).approve(lendingPool, wantValue); // For lendingpool to transfer the tokens
         return wantValue;
     }
 
@@ -66,12 +76,12 @@ contract GLPVault is VaultCore {
     }
 
     function getPosition(address _user) public view override returns (uint256) {
-        require(_user != address(0), "VM: Invalid address");
-        return (oToken.balanceOf(_user) * pps) / Constants.PINT;
+        require(_user != address(0), "GLPC: Invalid address");
+        return (oToken.balanceOf(_user) * getPPS()) / Constants.PINT;
     }
 
     function getDebt(address _user) public view override returns (uint256) {
-        require(_user != address(0), "VM: Invalid address");
+        require(_user != address(0), "GLPC: Invalid address");
         ILendingPool pool = ILendingPool(lendingPool);
         return getTokenValueInAsset(pool.wantToken(), pool.getDebt(_user));
     }
@@ -90,5 +100,16 @@ contract GLPVault is VaultCore {
 
     function isHealthy(address _user) external view override returns (bool) {
         return hf(_user) >= HF_THRESHOLD;
+    }
+
+    function setAllowance(address token, address spender, bool max) external onlyOwner {
+        require(token != address(0) && spender != address(0), "GLPC: Invalid addresses");
+        IERC20(token).approve(spender, max ? Constants.MAX_INT : 0);
+    }
+
+    function blockNumber() external view override returns (uint256) {
+        // ArbSys is a precompiled contract at address(100)
+        // address(100) == 0x0000000000000000000000000000000000000064
+        return ArbSys(arbSysAddress).arbBlockNumber();
     }
 }

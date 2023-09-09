@@ -63,7 +63,7 @@ describe("VaultKeeper checks", function(){
             expect(await oGlp.balanceOf(u1.address)).to.equal(0);
             expect(await oGlp.balanceOf(u2.address)).to.equal(0);
             expect(await sGlp.balanceOf(glpVault.address)).to.equal(0);
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(1); // dust balance 1e-6
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(0); // dust balance 1e-6
             expect(await glp.balanceOf(u2.address)).to.equal(toN(500));
         });
 
@@ -80,7 +80,7 @@ describe("VaultKeeper checks", function(){
             expect(await oGlp.balanceOf(u1.address)).to.equal(0);
             expect(await oGlp.balanceOf(u2.address)).to.equal(toN(500));
             expect(await sGlp.balanceOf(glpVault.address)).to.equal(toN(500));
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(1); // dust balance 1e-6
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(0); // dust balance 1e-6
             expect(await glp.balanceOf(u2.address)).to.equal(0);
         });
 
@@ -117,6 +117,7 @@ describe("VaultKeeper checks", function(){
             expect(Math.floor(await sGlp.balanceOf(glpVault.address)/1e18)).to.equal(500);
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); // dust balance 1e-6
             expect(Math.floor(await glp.balanceOf(u2.address)/1e18)).to.equal(0);
+            
         });
 
 
@@ -138,7 +139,7 @@ describe("VaultKeeper checks", function(){
         });
 
         it("Liquidate 500GLP, Borrowed 400GLP - [debt > position] | unstakes | bad debt", async function(){
-            const {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees} = await loadFixture(deployGLPVaultKeeper);
+            const {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, pool} = await loadFixture(deployGLPVaultKeeper);
             // u1 is depositor
             // u2 is liquidator
             await glpMockManager.setPriceOfGLP(toN(0.6, 30));
@@ -150,8 +151,9 @@ describe("VaultKeeper checks", function(){
             expect(await oGlp.balanceOf(u2.address)).to.equal(0);
             expect(Math.floor(await oGlp.balanceOf(fees.getTreasury())/1e16)).to.equal(0);
             expect(Math.floor(await sGlp.balanceOf(glpVault.address)/1e16)).to.equal(0);
-            expect(await doUSDC.balanceOf(u1.address)).to.equal(1); // dust balance 1e-6
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(0); // dust balance 1e-6
             expect(Math.floor(await glp.balanceOf(u2.address)/1e18)).to.equal(500);
+            expect(Math.floor(await pool.badDebt()/1e6)).to.equal(100);
         });
     });
 
@@ -159,10 +161,10 @@ describe("VaultKeeper checks", function(){
         it("Harvesting checks", async function(){
             const {owner, u1, u2, u3, usdc, oGlp, doUSDC, sGlp, glp, phMock, glpMockManager, vaultKeeper, glpVault, fees, stgy} = await loadFixture(deployGLPVaultKeeper);
             // u1 is depositor 500oGLP, 400USDC Debt
-            let pps = (await glpVault.pps()/1e16);
+            let pps = (await glpVault.getPPS()/1e16);
             await time.increase(365 * 24 * 3600);
             await vaultKeeper.connect(u1).harvest();
-            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
             expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(518)
             expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
         });
@@ -172,10 +174,10 @@ describe("VaultKeeper checks", function(){
             // u1 is depositor 500oGLP, 400USDC Debt
             await phMock.setPriceOf(wETH.address, toN(1));
             await glpMockRouter.setFeesToClaim(toN(100)); // 20% yield
-            let pps = (await glpVault.pps()/1e16);
+            let pps = (await glpVault.getPPS()/1e16);
             await time.increase(365 * 24 * 3600);
             await vaultKeeper.connect(u1).harvest();
-            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
             expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(580)
             expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
         });
@@ -185,10 +187,10 @@ describe("VaultKeeper checks", function(){
             // u1 is depositor 500oGLP, 400USDC Debt
             await phMock.setPriceOf(wETH.address, toN(1));
             await glpMockRouter.setFeesToClaim(toN(50)); // 10% yield
-            let pps = (await glpVault.pps()/1e16);
+            let pps = (await glpVault.getPPS()/1e16);
             await time.increase(365 * 24 * 3600);
             await vaultKeeper.connect(u1).harvest();
-            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
             expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(535)
             expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(0);
         });
@@ -198,10 +200,10 @@ describe("VaultKeeper checks", function(){
             // u1 is depositor 500oGLP, 400USDC Debt
             await phMock.setPriceOf(wETH.address, toN(1));
             await glpMockRouter.setFeesToClaim(toN(10)); // 2% yield
-            let pps = (await glpVault.pps()/1e16);
+            let pps = (await glpVault.getPPS()/1e16);
             await time.increase(365 * 24 * 3600);
             await vaultKeeper.connect(u1).harvest();
-            expect(pps <= (await glpVault.pps()/1e16)).to.equal(true);
+            expect(pps <= (await glpVault.getPPS()/1e16)).to.equal(true);
             expect(Math.round(await glp.balanceOf(stgy.address)/1e18)).to.equal(505)
             expect(Math.round(await fees.getAccumulatedFee()/1e18)).to.equal(6);
         });

@@ -72,13 +72,13 @@ contract OliveManager is IRewardManager, Allowed {
         return IERC20(address(esOlive)).balanceOf(_staker);
     }
 
-    function stake(uint256 _amount) external updateReward(msg.sender) {
+    function stake(uint256 _amount) whenNotPaused external updateReward(msg.sender) {
         address caller = msg.sender;
         olive.burn(caller, _amount);
         esOlive.mint(caller, _amount);
     }
 
-    function unstake(uint256 _amount, uint8 _timeInDays) external updateReward(msg.sender) {  
+    function unstake(uint256 _amount, uint8 _timeInDays) whenNotPaused external updateReward(msg.sender) {  
         address caller = msg.sender;
         require(_timeInDays >= minVestingPeriod/Constants.ONE_DAY && _timeInDays <= maxVestingPeriod/Constants.ONE_DAY, "Fund: Invalid vesting days");
 
@@ -105,7 +105,7 @@ contract OliveManager is IRewardManager, Allowed {
         return uint8(result) ;
     }
 
-    function withdraw() public {
+    function withdraw() whenNotPaused public {
         _withdraw(msg.sender);
     }
 
@@ -117,7 +117,7 @@ contract OliveManager is IRewardManager, Allowed {
         lastWithdrawTime[_user] = block.timestamp;
     }
 
-    function reStake() external updateReward(msg.sender) {
+    function reStake() external whenNotPaused updateReward(msg.sender) {
         address caller = msg.sender;
         uint256 toMint = getReservedForVesting(caller) + getClaimable(caller);
         toMint = (toMint * 100 * Constants.PINT) / (100 - lastSlashRate[caller]);

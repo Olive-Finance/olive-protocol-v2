@@ -5,8 +5,11 @@ pragma solidity ^0.8.17;
 library Constants {
     // Base constants
     uint256 constant PINT = 1e18;
+    uint256 constant ZERO = 0;
     uint256 constant MAX_INT = type(uint256).max;
     uint256 constant HUNDRED_PERCENT = 100e18; //100
+    uint256 constant FIFTY_PERCENT = 50e18; //100
+    uint256 constant PINT_POW_2 = 1e36; //PINT**2
 
     // Thresholds
     uint256 constant LIQUIDATION_THRESHOLD = 0.9e18;

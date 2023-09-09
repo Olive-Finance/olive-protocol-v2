@@ -22,7 +22,7 @@ contract Portal is NonblockingLzApp, Pausable {
         olive = IMintable(_olive);
     }
 
-    function enable(bool en) external {
+    function enable(bool en) onlyOwner external {
         if (en) {
             _pause();
         } else {
@@ -32,13 +32,12 @@ contract Portal is NonblockingLzApp, Pausable {
 
     function sendMintInstruction(
         uint16 _dstChainId, 
-        address _user, 
         uint256 _amount
     ) public payable whenNotPaused {
-        require(_user != address(0), "Portal: Invalid user address");
+        address _user = msg.sender;
         require(_amount > 0, "Portal: Invalid amount");
-        require(IERC20(address(olive)).balanceOf(address(this)) >= _amount, "Portal: Insufficient olive balance");
-        require(address(this).balance > 0, "the balance of this contract is 0. pls send gas for message fees");
+        require(IERC20(address(olive)).balanceOf(_user) >= _amount, "Portal: Insufficient olive balance");
+        require(msg.value > 0, "the balance of this contract is 0. pls send gas for message fees");
 
         // encode the payload with user and amount -- desination is always gonna be ethereum
         bytes memory payload = abi.encode(_user, _amount);

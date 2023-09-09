@@ -61,16 +61,6 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         computeFees();
         IStrategy strategy = IStrategy(vaultCore.getStrategy());
         strategy.harvest();
-        setPricePerShare();
-    }
-
-    // Call post harvest and compound
-    function setPricePerShare() internal {
-        uint256 pps = Constants.PINT;
-        if (vaultManager.totalSupply() != 0) {
-            pps = (vaultManager.balance() * Constants.PINT) / vaultManager.totalSupply();
-        }
-        vaultCore.setPPS(pps);
     }
 
     function liquidation(address _user, uint256 _toRepay, bool _toStake) external onlyLiquidator {
@@ -87,41 +77,47 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         uint256 debt = pool.getDebt(_user);
         uint256 debtInAsset = vaultCore.getDebt(_user);
         uint256 position = vaultCore.getPosition(_user);
+        uint256 positionInWant = vaultCore.getTokenValueforAsset(address(want), position);
         uint256 toLiquidator;
         uint256 toTreasury;
 
         if (position > debtInAsset) {
             (toLiquidator, toTreasury) = handleExcess(liquidator, _user, debt, position, _toRepay, address(want));
         } else {
-            toLiquidator = handleBadDebt(liquidator, _user, debt, position, _toRepay);
+            toLiquidator = handleBadDebt(liquidator, _user, position, positionInWant, _toRepay);
         }
-        _transfer(liquidator, toLiquidator, _toStake);
+        _transfer(liquidator, _toShares(toLiquidator), _toStake);
         if (toTreasury > 0) {
-            _transfer(fees.getTreasury(), toTreasury, true);
+            _transfer(fees.getTreasury(), _toShares(toTreasury), true);
         }
     }
 
     function handleExcess(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay, address _want) internal returns (uint256, uint256) {
         uint256 toPay = min(_debtInWant, _toRepay);
         uint256 toPayInAsset = vaultCore.getTokenValueInAsset(_want, toPay);
-        uint256 feeInAsset = (toPayInAsset * fees.getLiquidationFee()) / Constants.HUNDRED_PERCENT;
+        uint256 feeInAsset = (toPayInAsset * fees.getLiquidationFee())/Constants.HUNDRED_PERCENT;
         uint256 liquidatorFee;
 
         if (_position - toPayInAsset < feeInAsset) {
             feeInAsset = _position - toPayInAsset;
         } 
-        vaultCore.burnShares(_user, feeInAsset + toPayInAsset);
-        _repay(_liquidator, _user, toPay);
+        vaultCore.burnShares(_user, _toShares(feeInAsset + toPayInAsset));
+        _repay(_liquidator, _user, toPay, 0);
         liquidatorFee = (feeInAsset * fees.getLiquidatorFee())/Constants.HUNDRED_PERCENT;
         return (toPayInAsset + liquidatorFee, feeInAsset - liquidatorFee);
     }
 
-    function handleBadDebt(address _liquidator, address _user, uint256 _debtInWant, uint256 _position, uint256 _toRepay) internal returns (uint256) {
-        uint256 toPay = min(_debtInWant, _toRepay);
-        uint256 toTransfer = (_position * toPay) / _debtInWant;
-        vaultCore.burnShares(_user, toTransfer);
-        _repay(_liquidator, _user, toPay);
+    function handleBadDebt(address _liquidator, address _user, uint256 _position, uint256 _positionInWant, uint256 _toRepay) internal returns (uint256) {
+        uint256 toPay = min(_positionInWant, _toRepay);
+        uint256 toTransfer = (_position * toPay) / _positionInWant;
+        uint256 sFactor = (toTransfer * Constants.PINT) / _position; // sFactor - is settlement factor
+        vaultCore.burnShares(_user, _toShares(toTransfer));
+        _repay(_liquidator, _user, toPay, sFactor);
         return toTransfer;
+    }
+
+    function _toShares(uint256 _amount) internal view returns (uint256) {
+        return (_amount * Constants.PINT) / vaultCore.getPPS();
     }
 
     function _transfer(address _liquidator, uint256 _shares, bool _toStake) internal {
@@ -134,9 +130,13 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
         vaultCore.transferAsset(_liquidator, sold);
     }
 
-    function _repay(address _liquidator, address _user, uint256 _amount) internal {
+    function _repay(address _liquidator, address _user, uint256 _amount, uint256 _sFactor) internal {
         ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
-        pool.repay(_liquidator, _user, _amount);
+        if (_sFactor > 0) {
+             pool.repayWithSettle(_liquidator, _user, _amount, _sFactor);
+        } else {
+            pool.repay(_liquidator, _user, _amount);
+        }
     }
 
     function min(uint256 x, uint256 y) internal returns (uint256) {

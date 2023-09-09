@@ -14,11 +14,9 @@ interface IVaultCore {
     function getStrategy() external view returns (address);
     function totalDeposits() external view returns (uint256);
 
-    function setPPS(uint256 _pps) external; 
     function mintShares(address _user, uint256 _amount) external;
     function burnShares(address _user, uint256 _amount) external;
     function transferAsset(address _to, uint256 _amount) external;
-    function transferToStrategy(uint256 _amount) external;
 
     // Buy function would be specific for the type of vault
     function buy(address _tokenIn, uint256 _amount) external returns (uint256);
@@ -38,4 +36,6 @@ interface IVaultCore {
 
     function hf(address _user) external view returns (uint256);
     function isHealthy(address _user) external view returns (bool);
+
+    function blockNumber() external view returns (uint256);
 }

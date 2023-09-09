@@ -5,6 +5,7 @@ pragma solidity ^0.8.17;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IMintable} from '../interfaces/IMintable.sol';
 import {IVaultCore} from './interfaces/IVaultCore.sol';
+import {IStrategy} from '../strategies/interfaces/IStrategy.sol';
 
 import {Allowed} from '../utils/Allowed.sol';
 import {Constants} from '../lib/Constants.sol';
@@ -20,9 +21,6 @@ abstract contract VaultCore is IVaultCore, Allowed {
 
     // Pool for borrowing
     address public lendingPool;
-
-    //Price per share
-    uint256 public pps = Constants.PINT;
 
     // Contract for doing vault actions - deposit, withdraw, leverage, deleverage
     address public vaultManager;
@@ -74,7 +72,8 @@ abstract contract VaultCore is IVaultCore, Allowed {
     }
 
     function setLiquidationThreshold(uint256 _lqThreshold) external onlyOwner {
-        require(_lqThreshold >= Constants.LIQUIDATION_THRESHOLD_LIMIT, "VC: Invalid liquidation threshold");
+        require(_lqThreshold >= Constants.LIQUIDATION_THRESHOLD_LIMIT && 
+        _lqThreshold <= Constants.PINT, "VC: Invalid liquidation threshold");
         LIQUIDATION_THRESHOLD = _lqThreshold;
     }
 
@@ -94,14 +93,10 @@ abstract contract VaultCore is IVaultCore, Allowed {
         sToken = IERC20(_sToken);
     }
 
-    function setPPS(uint256 _pps) external override whenNotPaused onlyMoK {
-        pps = _pps;
-    }
-
 
     // Vault view functions
-    function getPPS() external view override returns (uint256) {
-        return pps;
+    function getPPS() public view override returns (uint256) {
+        return IStrategy(strategy).getPPS();
     }
 
     function getAssetToken() external view override returns (address) {
@@ -168,10 +163,6 @@ abstract contract VaultCore is IVaultCore, Allowed {
 
     function transferAsset(address _to, uint256 _amount) external onlyMoK {
         _transfer(_to, _amount);
-    }
-
-    function transferToStrategy(uint256 _amount) external onlyMoK {
-        _transfer(strategy, _amount);
     }
 
     function _transfer(address _to, uint256 _amount) internal whenNotPaused {

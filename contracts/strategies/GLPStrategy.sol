@@ -26,9 +26,6 @@ contract GLPStrategy is IStrategy, Allowed {
     uint256 public lastHarvest;
     uint256 public pps;
     address public keeper;
-    
-    // Ledger for validating transfers
-    uint256 public assetBalance;
 
     IFees public fees;
 
@@ -93,8 +90,7 @@ contract GLPStrategy is IStrategy, Allowed {
 
     function deposit(address _user, uint256 _amount) external override whenNotPaused nonReentrant onlyAllowed onlyHandler(_user)   {
         require(_amount > 0, "STR: Zero/Negative amount");
-        require(asset.balanceOf(address(this)) - assetBalance >= _amount, "STR: No token transfer");
-        assetBalance += _amount;
+        require(asset.transferFrom(_user, address(this), _amount), "STR: No token transfer");
         IMintable soToken = IMintable(address(sToken));
         soToken.mint(_user, getShares(_amount));
     }
@@ -112,7 +108,6 @@ contract GLPStrategy is IStrategy, Allowed {
         require(sToken.balanceOf(_user) >= _shares, "STR: Insufficient balance");
         IMintable(address(sToken)).burn(_user, _shares);
         uint256 amount = getAmount(_shares);
-        assetBalance -= amount;
         asset.transfer(_user, amount);
         return amount;
     }
@@ -135,18 +130,21 @@ contract GLPStrategy is IStrategy, Allowed {
         uint256 pFees = (yield * fees.getPFee())/ Constants.HUNDRED_PERCENT;
         uint256 mFees = vaultCore.getTokenValueforAsset(address(rToken), fees.getAccumulatedFee());
         uint256 toOliveHolders = (pFees * fees.getRewardRateForOliveHolders()) / Constants.HUNDRED_PERCENT;
-        uint256 feeLimit =  ((yield * 5)/10) - pFees;
-        if(feeLimit > pFees) {
-            chargeManagementFee(feeLimit, mFees);
+        chargeManagementFee(((yield * Constants.FIFTY_PERCENT)/Constants.HUNDRED_PERCENT) - pFees, mFees); // Max cap is 50% of yield
+
+        if (pFees - toOliveHolders > 0) { // transfer only for non-zero fees
+             rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);
         }
 
-        rToken.transfer(fees.getTreasury(), pFees - toOliveHolders);
-        rToken.transfer(address(oliveRewards), toOliveHolders);
-        oliveRewards.notifyRewardAmount(toOliveHolders);
+        if (toOliveHolders > 0) { // transfer only for non-zero fees
+            rToken.transfer(address(oliveRewards), toOliveHolders);
+            oliveRewards.notifyRewardAmount(toOliveHolders);
+        }
     }
 
     function chargeManagementFee(uint256 _limit, uint256 _accruedFees) internal {
         uint256 managementfee = _limit > _accruedFees ? _accruedFees: _limit;
+        if (managementfee == 0) return; // Protection for no fees when management fees are kept at zero
         rToken.transfer(fees.getTreasury(), managementfee);
         if ( _limit > _accruedFees) {
             fees.setFee(0, block.timestamp);
@@ -160,6 +158,10 @@ contract GLPStrategy is IStrategy, Allowed {
             pps = Constants.PINT;
         }
         pps = (asset.balanceOf(address(this)) * Constants.PINT)/sToken.totalSupply();
+    }
+
+    function getPPS() external view override returns (uint256) {
+        return pps;
     }
 
     // mint more GLP with the ETH earned as fees
@@ -189,4 +191,4 @@ contract GLPStrategy is IStrategy, Allowed {
         harvest();
         asset.transfer(_to, asset.balanceOf(address(this)));
     }
-}
+}   

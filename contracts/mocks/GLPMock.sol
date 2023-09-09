@@ -101,7 +101,7 @@ contract GLPMockManager is IGLPManager, GLPInterface {
         IMintable(address(glp)).burn(_user, _amount);
         uint256 toTransfer = (_amount * (Constants.HUNDRED_PERCENT - fee) * 10**IERC20Metadata(address(_tokenOut)).decimals()) 
         / (Constants.HUNDRED_PERCENT * 10**IERC20Metadata(address(glp)).decimals());
-        token.transfer(_user, toTransfer);
+        IMintable(address(token)).mint(_user, toTransfer);
         return toTransfer;
     }
 }

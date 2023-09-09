@@ -72,7 +72,8 @@ abstract contract VaultCore is IVaultCore, Allowed {
     }
 
     function setLiquidationThreshold(uint256 _lqThreshold) external onlyOwner {
-        require(_lqThreshold >= Constants.LIQUIDATION_THRESHOLD_LIMIT, "VC: Invalid liquidation threshold");
+        require(_lqThreshold >= Constants.LIQUIDATION_THRESHOLD_LIMIT && 
+        _lqThreshold <= Constants.PINT, "VC: Invalid liquidation threshold");
         LIQUIDATION_THRESHOLD = _lqThreshold;
     }
 

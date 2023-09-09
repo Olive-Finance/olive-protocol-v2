@@ -80,6 +80,25 @@ describe ("Access validations", function () {
             await expect(pool.connect(u1).revokeRole(u2.address)).to.be.revertedWith(revertString);
             await expect(pool.connect(u1).enable(true)).to.be.revertedWith(revertString);
         });
+
+
+        it("FEEs - Non Owner checks", async function () {
+            const { fees, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
+            const revertReason : string = 'Governable: forbidden'
+
+            await expect(fees.connect(u1).setPFee(toN(10))).to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setMFee(toN(2))).to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setLiquidationFee(toN(10))).to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setLiquidatorFee(toN(80))).to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setRewardRateForOliveHolders(toN(10))).to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setYieldFeeLimit(toN(10))).to.be.revertedWith(revertReason);
+
+            await expect(fees.connect(u1).setOwner(u2.address)).to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).grantRole(u2.address)).to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).revokeRole(u2.address)).to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).enable(true)).to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).setTreasury(u2.address)).to.be.revertedWith(revertString);
+        });
     });
 
 
@@ -107,7 +126,7 @@ describe ("Access validations", function () {
             await expect(glpVault.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
         });
     
-        it("VaultManager - Non Owner checks", async function () {
+        it("VaultManager - Owner checks", async function () {
             const { vaultManager, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
             await vaultManager.setOwner(u1.address);
 
@@ -121,7 +140,7 @@ describe ("Access validations", function () {
             await expect(vaultManager.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
         });
     
-        it("VaultKeeper - Non Owner checks", async function () {
+        it("VaultKeeper - Owner checks", async function () {
             const { vaultKeeper, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
             await vaultKeeper.setOwner(u1.address);
 
@@ -135,7 +154,7 @@ describe ("Access validations", function () {
             await expect(vaultKeeper.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
         });
 
-        it("OliveManager - Non Owner checks", async function () {
+        it("OliveManager - Owner checks", async function () {
             const { oliveManager, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
             await oliveManager.setOwner(u1.address);
 
@@ -151,7 +170,7 @@ describe ("Access validations", function () {
             await expect(oliveManager.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
         });
 
-        it("Olive - Non Owner checks", async function () {
+        it("Olive - Owner checks", async function () {
             const { olive, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
             await olive.setOwner(u1.address);
 
@@ -164,7 +183,7 @@ describe ("Access validations", function () {
             await expect(olive.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
         });
 
-        it("LendingPool - Non Owner checks", async function () {
+        it("LendingPool - Owner checks", async function () {
             const { pool, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
             await pool.setOwner(u1.address);
 
@@ -176,6 +195,25 @@ describe ("Access validations", function () {
 
             await expect(pool.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
         });
+
+        it("FEEs - Owner checks", async function () {
+            const { fees, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
+            await fees.setOwner(u1.address);
+            await fees.setGov(u1.address);
+            const revertReason : string = 'Governable: forbidden'
+
+            await expect(fees.connect(u1).setPFee(toN(10))).not.to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setMFee(toN(2))).not.to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setLiquidationFee(toN(10))).not.to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setLiquidatorFee(toN(80))).not.to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setRewardRateForOliveHolders(toN(10))).not.to.be.revertedWith(revertReason);
+            await expect(fees.connect(u1).setYieldFeeLimit(toN(10))).not.to.be.revertedWith(revertReason);
+            
+            await expect(fees.connect(u1).grantRole(u2.address)).not.to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).revokeRole(u2.address)).not.to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).enable(true)).not.to.be.revertedWith(revertString);
+            await expect(fees.connect(u1).setOwner(u2.address)).not.to.be.revertedWith(revertString);
+        });
     });
     
 
@@ -186,6 +224,14 @@ describe ("Access validations", function () {
         await expect(glpVault.connect(u1).mintShares(u2.address, toN(10))).to.be.revertedWith(mokRevertError);
         await expect(glpVault.connect(u1).burnShares(u2.address, toN(10))).to.be.revertedWith(mokRevertError);
         await expect(glpVault.connect(u1).transferAsset(u2.address, toN(2))).to.be.revertedWith(mokRevertError);
+    });
+
+    it("Pool onlyAllowed checks", async function(){
+        const { pool, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
+        const allowedRevertError: string = 'ALW: Insufficient privilages';
+        await pool.revokeRole(u1.address);
+        await expect(pool.connect(u1).borrow(u2.address, u2.address, toN(10))).to.be.revertedWith(allowedRevertError);
+        await expect(pool.connect(u1).repayWithSettle(u2.address, u2.address, toN(10), toN(1))).to.be.revertedWith(allowedRevertError);
     });
 
 

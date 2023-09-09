@@ -21,4 +21,43 @@ describe ("Invalid input validations", function () {
         await expect(glpVault.connect(u1).setGLPPrecision(toN(0, 30))).to.be.reverted;
         await expect(glpVault.connect(u1).setLiquidationThreshold(toN(0.1))).to.be.reverted;
     });
+
+    it("Pool - Invalid input checks", async function(){
+        const { pool, u1, u2, aUSDC, fees } = await loadFixture(deployGLPVaultKeeper);
+        const allowedRevertError: string = 'ALW: Insufficient privilages';
+        await pool.grantRole(u1.address);
+
+        await expect(pool.connect(u1).borrow(ethers.constants.AddressZero, u2.address, toN(10))).to.be.revertedWith('POL: Null address');
+        await expect(pool.connect(u1).borrow(u2.address, ethers.constants.AddressZero, toN(10))).to.be.revertedWith('POL: Null address');
+        await expect(pool.connect(u1).borrow(u2.address, u2.address, toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
+        await expect(pool.connect(u1).borrow(u2.address, u2.address, toN(10))).to.be.revertedWith('POL: Insufficient liquidity to borrow');
+
+        await expect(pool.connect(u1).repay(u2.address, ethers.constants.AddressZero, toN(10))).to.be.revertedWith('POL: Null address');
+        await expect(pool.connect(u1).repay(u2.address, ethers.constants.AddressZero, toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
+
+        await expect(pool.connect(u1).supply(toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
+
+        await expect(pool.connect(u1).withdraw(toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
+        await expect(pool.connect(u1).withdraw(toN(10))).to.be.revertedWith('POL: Not enough shares');
+        await aUSDC.mint(u1.address, toN(10));
+        await expect(pool.connect(u1).withdraw(toN(10))).to.be.reverted; // update reserver failes during the computation
+
+        await expect(fees.setTreasury(ethers.constants.AddressZero)).to.be.revertedWith('FEE: Invalid treasury address');
+    });
+
+    it("Fees - Invalid input checks", async function(){
+        const {u1, fees } = await loadFixture(deployGLPVaultKeeper);
+        await fees.setOwner(u1.address);
+        await fees.setGov(u1.address);
+        const revertReason : string = 'Governable: forbidden'
+
+        await expect(fees.connect(u1).setPFee(toN(150))).to.be.reverted;
+        await expect(fees.connect(u1).setMFee(toN(150))).to.be.reverted;
+        await expect(fees.connect(u1).setLiquidationFee(toN(150))).to.be.reverted;
+        await expect(fees.connect(u1).setLiquidatorFee(toN(150))).to.be.reverted;
+        await expect(fees.connect(u1).setRewardRateForOliveHolders(toN(150))).to.be.reverted;
+        await expect(fees.connect(u1).setYieldFeeLimit(toN(150))).to.be.reverted;
+    });
+
+
 });

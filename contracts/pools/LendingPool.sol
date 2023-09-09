@@ -145,7 +145,6 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 _amount // Want token
     ) external override whenNotPaused nonReentrant returns (bool) {
         address _user = msg.sender;
-        require(_user != address(0), "POL: Null address");
         require(_amount > 0, "POL: Zero/Negative amount");
 
         updateReserve(_amount, uint256(0), uint256(0), uint256(0));
@@ -175,8 +174,6 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 dc = debtCorrection(); 
         badDebt -= wantAmount * (Constants.PINT - dc)/Constants.PINT;
         wantAmount = (wantAmount * dc) / Constants.PINT;
-        
-        require(wantAmount <= _available(), "POL: Insufficient liquidity to withdraw");
         
         IMintable(address(aToken)).burn(_user, _shares);
         reserve._want.transfer(_user, wantAmount);

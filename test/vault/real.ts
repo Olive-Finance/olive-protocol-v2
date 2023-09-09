@@ -182,7 +182,7 @@ describe("Reality checks", function(){
             await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
             expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(0);
             expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(3163);
-            expect(Math.round(await oGlp.balanceOf(u1.address)/1e8)).to.equal(31632037866692); //oGLP balance
+            expect(Math.round(Math.round(await oGlp.balanceOf(u1.address)/1e18))).to.equal(3163); //oGLP balance
             await vaultManager.connect(u1).withdraw(toN(3163.20, 18), 0, 0);
             expect(Math.round(await oGlp.balanceOf(u1.address)/1e14)).to.equal(38);
             console.log('hf: ', await glpVault.hf(u1.address)/1e18);

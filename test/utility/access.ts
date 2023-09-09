@@ -1,9 +1,6 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { ethers, web3 } from "hardhat";
 import { toN, deployGLPVaultKeeper } from "../utils";
-import { glp } from "../../typechain-types/contracts/strategies";
-import { vault } from "../../typechain-types/contracts";
 
 describe ("Access validations", function () {
     const revertString : string = "ALW: Not an owner";
@@ -182,7 +179,14 @@ describe ("Access validations", function () {
     });
     
 
+    it("MoK only checks", async function(){
+        const { glpVault, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
+        const mokRevertError: string = 'VC: Not an manager / keeper';
 
+        await expect(glpVault.connect(u1).mintShares(u2.address, toN(10))).to.be.revertedWith(mokRevertError);
+        await expect(glpVault.connect(u1).burnShares(u2.address, toN(10))).to.be.revertedWith(mokRevertError);
+        await expect(glpVault.connect(u1).transferAsset(u2.address, toN(2))).to.be.revertedWith(mokRevertError);
+    });
 
 
 });

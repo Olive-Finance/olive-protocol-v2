@@ -96,9 +96,9 @@ contract LendingPool is ILendingPool, Allowed {
         fees = IFees(_fees);
     }
 
-    function mintFees(uint256 _amount) external onlyOwner {
-        if (_amount <= 0) return ;
+    function mintFees() external onlyOwner {
         uint256 scaledAmount = (totalFees * Constants.PINT) / reserve._supplyIndex;
+        totalFees = 0;
         IMintable(address(reserve._aToken)).mint(fees.getTreasury(), scaledAmount);
     }
 

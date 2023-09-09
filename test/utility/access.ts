@@ -73,7 +73,7 @@ describe ("Access validations", function () {
 
         it("LendingPool - Non Owner checks", async function () {
             const { pool, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
-            await expect(pool.connect(u1).mintFees(toN(1, 6))).to.be.revertedWith(revertString);
+            await expect(pool.connect(u1).mintFees()).to.be.revertedWith(revertString);
             await expect(pool.connect(u1).setFees(u2.address)).to.be.revertedWith(revertString);
             await expect(pool.connect(u1).setOwner(u2.address)).to.be.revertedWith(revertString);
             await expect(pool.connect(u1).grantRole(u2.address)).to.be.revertedWith(revertString);
@@ -187,7 +187,7 @@ describe ("Access validations", function () {
             const { pool, u1, u2 } = await loadFixture(deployGLPVaultKeeper);
             await pool.setOwner(u1.address);
 
-            await expect(pool.connect(u1).mintFees(toN(1, 6))).not.to.be.revertedWith(revertString);
+            await expect(pool.connect(u1).mintFees()).not.to.be.revertedWith(revertString);
             await expect(pool.connect(u1).setFees(u2.address)).not.to.be.revertedWith(revertString);
             await expect(pool.connect(u1).grantRole(u2.address)).not.to.be.revertedWith(revertString);
             await expect(pool.connect(u1).revokeRole(u2.address)).not.to.be.revertedWith(revertString);

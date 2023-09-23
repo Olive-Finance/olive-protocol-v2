@@ -149,6 +149,10 @@ contract VaultManager is IVaultManager, Allowed {
         require(_user != address(0) && _user != address(this), "VM: Invalid Address");
         address want = ILendingPool(vaultCore.getLendingPool()).wantToken();
         uint256 debtInWant = vaultCore.getTokenValueforAsset(want, _debt);
+        // This happens in a rare case when the debt is too small in glp and due to usd precission it becomes 0
+        if (debtInWant == 0) { 
+            return 0;
+        }
         uint256 borrowed = _borrow(_user, debtInWant);
         return vaultCore.buy(want, borrowed);
     }
@@ -156,29 +160,31 @@ contract VaultManager is IVaultManager, Allowed {
     // Vault functions
     function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
      external override blockCheck returns (bool) {
-        return _deposit(msg.sender, _amount, _leverage, _expShares, _slippage);
+        return _deposit(msg.sender, _amount, _leverage, _expShares, _slippage, false);
     }
 
     function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage) 
      external override blockCheck  returns (bool) {
-        return _deposit(msg.sender, 0, _leverage, _expShares, _slippage);
+        require (_leverage > getLeverage(msg.sender), "VM: New leverage < current leverage");
+        return _deposit(msg.sender, 0, _leverage, _expShares, _slippage, true);
     }
 
-    function _getDebt(address _user, uint256 _curLeverage, uint256 _toLeverage, uint256 _amount) internal view returns (uint256) {
-        uint256 collateral = vaultCore.getCollateral(_user);
-        // As the leverage increases based on time, and precision is maintained at 18, this correction is needed. 
-        // This ensures the _toLeverage should always be greater than _curLeverage
-        uint256 newLeverage = _curLeverage > _toLeverage ? _curLeverage: _toLeverage; 
-        uint256 debt = (collateral * (newLeverage - _curLeverage)) + (_amount * (newLeverage - vaultCore.getMinLeverage()));
+    function _getDebt(address _user, uint256 _curLeverage, uint256 _toLeverage, uint256 _amount, bool onlyLeverage) internal view returns (uint256) {
+        uint256 debt;
+        if (onlyLeverage) {
+            debt = vaultCore.getCollateral(_user) * (_toLeverage - _curLeverage);
+        } else{
+            debt = _amount * (_toLeverage - vaultCore.getMinLeverage());
+        }
         return (debt / Constants.PINT); 
     }
 
-    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
+    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage, bool onlyLeverage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
         require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
-        uint256 debt = _getDebt(_user, curLeverage, _leverage, _amount);
+        uint256 debt = _getDebt(_user, curLeverage, _leverage, _amount, onlyLeverage);
         uint256 bought;
         IERC20(vaultCore.getAssetToken()).transferFrom(_user, address(vaultCore), _amount);
         if (debt > 0) {

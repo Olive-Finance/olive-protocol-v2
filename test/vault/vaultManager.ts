@@ -64,8 +64,8 @@ describe("VaultManager checks", function(){
             const {owner, glp, u1, doUSDC, vaultManager, oGlp} = await loadFixture(deployGLPVault);
             await vaultManager.connect(u1).deposit(toN(100), toN(1), 0, 0);
             await vaultManager.connect(u1).deposit(toN(100), toN(2), 0, 0);
-            expect(await oGlp.balanceOf(u1.address)).to.equal(toN(400));
-            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(200); 
+            expect(await oGlp.balanceOf(u1.address)).to.equal(toN(300));
+            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(100); 
         });
     });
 })

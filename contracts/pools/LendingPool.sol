@@ -5,6 +5,7 @@ pragma solidity ^0.8.17;
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {ILendingPool} from "./interfaces/ILendingPool.sol";
+import {ILimit} from "./interfaces/ILimit.sol";
 import {IRateCalculator} from "./interfaces/IRateCalculator.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
@@ -20,14 +21,17 @@ contract LendingPool is ILendingPool, Allowed {
     IFees public fees;
     uint256 public totalFees;
     uint256 public badDebt;
+    ILimit public limit;
 
     constructor(
         address aToken,
         address dToken,
         address want,
-        address rcl
+        address rcl,
+        address _limit
     ) Allowed(msg.sender) {
-        reserve.init(aToken, dToken, want, rcl, address(this));
+        reserve.init(aToken, dToken, want, rcl);
+        limit = ILimit(_limit);
     }
 
     // View functions
@@ -37,13 +41,12 @@ contract LendingPool is ILendingPool, Allowed {
     }
 
     function _available() internal view returns (uint256) {
-        IERC20 want = reserve._want;
-        return want.balanceOf(address(this));
+        IERC20 aToken = reserve._aToken;
+        return (aToken.totalSupply() * reserve.getNormalizedIncome())/Constants.PINT;
     }
 
     function utilization() external view override returns (uint256) {
-        uint256 d = _debt();
-        return (d * Constants.PINT) / (d + _available());
+        return (_debt() * Constants.PINT) / _available();
     }
 
     function debtToken() external view override returns (address) {
@@ -78,6 +81,13 @@ contract LendingPool is ILendingPool, Allowed {
         return (reserve.getNormalizedIncome() * balance)/Constants.PINT;
     }
 
+    function getMaxBorrableAmount(address _to) external override view returns (uint256) {
+        if (_to == address(0)) return 0;
+        uint256 v1 = reserve._want.balanceOf(address(this));
+        uint256 v2 = limit.getLimit(_to);
+        return v1 > v2 ? v2 : v1;
+    }
+
     function debtCorrection() public view returns (uint256) {
         uint256 totalSupplied = (reserve.getNormalizedIncome() * reserve._aToken.totalSupply()) / Constants.PINT;
         if (badDebt >= totalSupplied) return Constants.ZERO;
@@ -94,6 +104,29 @@ contract LendingPool is ILendingPool, Allowed {
     function setFees(address _fees) external onlyOwner {
         require(_fees != address(0), "POL: Invalid fees address");
         fees = IFees(_fees);
+    }
+
+    function setLimit(address _limit) external onlyOwner {
+        require(_limit != address(0), "POL: Invalid limit address");
+        limit = ILimit(_limit);
+    }
+
+    /** Part of migration functions */
+    function setTokens(address aToken, address dToken, address rcl) whenPaused external onlyOwner {
+        require(aToken != address(0), "POL: Invalid aToken address");
+        require(dToken != address(0), "POL: Invalid dToken address");
+        reserve._aToken = IERC20(aToken);
+        reserve._dToken = IERC20(dToken);
+        reserve._rcl = IRateCalculator(rcl);
+    }
+
+    function setReserveParameters(uint256 _supplyRate, uint256 _borrowRate,
+     uint256 _supplyIndex, uint256 _borrowIndex, uint256 _lastupdated) whenPaused external onlyOwner {
+        reserve._supplyIndex = _supplyIndex;
+        reserve._borrowIndex = _borrowIndex;
+        reserve._lastUpdatedTimestamp = _lastupdated;
+        reserve._supplyRate = _supplyRate;
+        reserve._borrowRate = _borrowRate;
     }
 
     function mintFees() external onlyOwner {
@@ -129,10 +162,13 @@ contract LendingPool is ILendingPool, Allowed {
     ) external override onlyAllowed whenNotPaused nonReentrant returns (uint256) {
         require(_to != address(0), "POL: Null address");
         require(_user != address(0), "POL: Null address");
+        require(!limit.isBlackList(_user), "POL: Blacklisted address"); // Blacklist check
         require(_amount > 0, "POL: Zero/Negative amount");
+        require(_amount <= limit.getLimit(_to), "POL: Borrow limit exceeded"); // Limit check
         require(_amount <= _available(), "POL: Insufficient liquidity to borrow");
 
         updateReserve(uint256(0), uint256(0), _amount, uint256(0));
+        limit.consumeLimit(_to, _amount); // Limit update
 
         uint256 scaledBalance = (_amount * Constants.PINT) / reserve._borrowIndex;
         IMintable(address(reserve._dToken)).mint(_user, scaledBalance);
@@ -167,10 +203,6 @@ contract LendingPool is ILendingPool, Allowed {
 
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
 
-        // Socialising the bad debt
-        // todo : add test case with burning all the supply tokens - badDebt should be zero (Given there are no dTokens in circulation)
-        // todo : debtConnection factor should be same for all the users - validate this as test case
-
         uint256 dc = debtCorrection(); 
         badDebt -= wantAmount * (Constants.PINT - dc)/Constants.PINT;
         wantAmount = (wantAmount * dc) / Constants.PINT;
@@ -201,8 +233,8 @@ contract LendingPool is ILendingPool, Allowed {
          
         uint256 burnableShares = (_amount * Constants.PINT) / reserve._borrowIndex ;
         reserve._want.transferFrom(_from, address(this), _amount);
-
         IMintable(address(reserve._dToken)).burn(_user, burnableShares);
+        limit.enhaceLimit(_from, _amount); // todo : limit is updated to user in case of liquidation 
         return true;
     }
  

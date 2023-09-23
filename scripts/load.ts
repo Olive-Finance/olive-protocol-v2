@@ -53,6 +53,25 @@ async function main() {
     await vaultManager.connect(u1).leverage(ethers.utils.parseUnits('5', 18), 0, 0);
 }
 
+const accounts = await ethers.getSigners();
+const owner = accounts[0];
+const u1 = accounts[1];
+
+
+const Token = await ethers.getContractFactory("Token");
+const usdc = await Token.deploy('USDC Token', 'USDC', 6);
+await usdc.deployed();
+
+const glp = await Token.deploy('GLP Token', 'GLP', 18);
+await glp.deployed();
+
+const Faucet = await ethers.getContractFactory('Faucet')
+const faucet = await Faucet.deploy('0x761EA2A43E38e4402a57Ba452D69dB3577139aC3', '0x0Fc112174e17D5F21c127e893E7Ac1CF6B0e86D0')
+await u1.sendTransaction({to: faucet.address, value: ethers.utils.parseEther('9999.999')})
+
+await usdc.grantRole(faucet.address)
+await glp.grantRole(faucet.address)
+
 main().catch((error) => {
     console.error(error);
     process.exitCode = 1;

@@ -34,17 +34,13 @@ library Reserve {
 
         // Interest address strategy
         IRateCalculator _rcl;
-
-        // pool address
-        address _pool; //todo do we need this information
     }
 
-    function init(ReserveData storage reserve, address aToken, address dToken, address want, address rcl, address pool) internal {
+    function init(ReserveData storage reserve, address aToken, address dToken, address want, address rcl) internal {
         require(aToken != address(0), "RSV: aToken can't be null address");
         require(dToken != address(0), "RSV: dToken can't be null address");
         require(want != address(0), "RSV: want can't be null address");
         require(rcl != address(0), "RSV: Rate Calculator can't be null address");
-        require(pool != address(0), "RSV: Pool address can't be null address");
 
         reserve._supplyIndex = Constants.PINT;
         reserve._borrowIndex = Constants.PINT;
@@ -53,8 +49,6 @@ library Reserve {
         reserve._dToken = IERC20(dToken);
         reserve._want = IERC20(want);
         reserve._rcl = IRateCalculator(rcl);
-
-        reserve._pool = pool;
 
         reserve._lastUpdatedTimestamp = block.timestamp;
     }
@@ -118,10 +112,10 @@ library Reserve {
         uint256 repay
     ) internal {
         uint256 debt = totalBorrwedDebt + borrow - repay;
-        uint256 liquidity = totalliquidity + supply - withdraw;
+        uint256 liquidity = totalliquidity + supply - withdraw + repay;
         uint256 utilization = 0;
         if (debt!=0) {
-            utilization = (debt * Constants.PINT) / (liquidity + debt);
+            utilization = (debt * Constants.PINT) / (liquidity + totalBorrwedDebt);
         }
         reserve._borrowRate = reserve._rcl.borrowRate(utilization);
         reserve._supplyRate = reserve._rcl.supplyRate(utilization);

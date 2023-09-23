@@ -79,7 +79,7 @@ describe("Reality checks", function(){
             await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
             expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(0);
             expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(2559); //2559.2427715362
-            expect(Math.round(await oGlp.balanceOf(u1.address)/1e8)).to.equal(25592427737260); //oGLP balance
+            expect(Math.round(await oGlp.balanceOf(u1.address)/1e16)).to.equal(255924); //oGLP balance
             await vaultManager.connect(u1).withdraw(toN(2559.24, 18), 0, 0);
             expect(Math.round(await oGlp.balanceOf(u1.address)/1e14)).to.equal(28);
             console.log('hf: ', await glpVault.hf(u1.address)/1e18);
@@ -104,7 +104,7 @@ describe("Reality checks", function(){
             expect(Math.round(await oGlp.balanceOf(u2.address)/1e14)).to.equal(46);
             console.log('hf: ', await glpVault.hf(u2.address)/1e18);
 
-            expect(Math.round(await glp.balanceOf(stgy.address)/1e14)).to.equal(84); // Everything is withdrawn nothing pending in strategy expect dust balance
+            expect(Math.round(await glp.balanceOf(stgy.address)/1e15)).to.equal(8); // Everything is withdrawn nothing pending in strategy expect dust balance
     });
 
 

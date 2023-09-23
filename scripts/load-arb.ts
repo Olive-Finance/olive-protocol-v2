@@ -1,3 +1,4 @@
+import { getContractFactory } from "@nomiclabs/hardhat-ethers/types";
 import { ethers } from "hardhat";
 
 async function main() {
@@ -15,10 +16,10 @@ async function main() {
     const usdc = await Token.attach('0x761EA2A43E38e4402a57Ba452D69dB3577139aC3');
 
     // Olive vault and strategy tokens
-    const aUSDC = await Token.attach('0x34F6e69C5a2F20C2C1f2285acbBc0208901B3CEa');
-    const doUSDC = await Token.attach('0x5bc7cC11bF6CCf7650cDC11948DA61A60310eA0f');
-    const oGlp = await Token.attach('0xD647f808f5dc9d1890210b368766a405F7057803');
-    const sGlp = await Token.attach('0xFfC3D4393A1e3130EF1bCEbd64F3d8256d7433E8');
+    const aUSDC = await Token.attach('0x55162980938AD8cFB53bCcA4fd4C4A33f2425A52');
+    const doUSDC = await Token.attach('0x2438D4EfFC667d26Dc7aa72eC9933Fd85Fc0aE5b');
+    const oGlp = await Token.attach('0x0Adef0bE94529472653147e2BF3b8DF031503f3f');
+    const sGlp = await Token.attach('0x46F1cd8394A3eC87C43B69c866B5dC8745321412');
 
     //Rate calculator
     const RCL = await ethers.getContractFactory("RateCalculator");
@@ -30,25 +31,30 @@ async function main() {
 
     // Lending pools and grant roles for a and do tokens
     const LPUSDC = await ethers.getContractFactory("LendingPool");
-    const pool = await LPUSDC.attach('0x19cB35A65ded630Ff1f7Afb7a652FDFC4E63C9C3');
+    const pool = await LPUSDC.attach('0xebE59359EB6249D40F76586BBFca78C26238F99C');
 
     const Strategy = await ethers.getContractFactory('GLPStrategy');
-    const stgy = await Strategy.attach('0xcFD658FD8Aedd99F92fC5Cc0af1b4E8D9cAc7f44');
+    const stgy = await Strategy.attach('0xd1313F90f5E05EafBAdc312807a5e6f2cE19a228');
 
     const GLPVault = await ethers.getContractFactory("GLPVault");
-    const glpVault = await GLPVault.attach('0x91958BDFC2FFd1F573136128Af159DCfb636CcDa');
+    const glpVault = await GLPVault.attach('0x588234822d199F426A900187B53FAD544E0Cc788');
 
     const VaultManager = await ethers.getContractFactory("VaultManager");
-    const vaultManager = await VaultManager.attach('0xd9f29b4F8aaA8d54FdCf3cb5e18B2eD789B2aFF2');
+    const vaultManager = await VaultManager.attach('0x32e4D856ef5AbB27C6F3da3E0511d0E3D6BbDE38');
+    // 0x32e4D856ef5AbB27C6F3da3E0511d0E3D6BbDE38 -- new address
+    // 0xeaFAB0Fe3234c90F346F287F75080297D3eAb712 -- old address
 
     const VaultKeeper = await ethers.getContractFactory("VaultKeeper");
-    const vaultKeeper = await VaultKeeper.attach('0x6006b052a66d9683904Ed81293b6BE5ABB49fFE1');
+    const vaultKeeper = await VaultKeeper.attach('0x4fD9199515130930FF71c3400fFA335Aa1125EF7');
 
     const GLPMockRouter = await ethers.getContractFactory("GLPMock");
     const glpMockRouter = await GLPMockRouter.attach('0x2eAd6C7c2A36e357D9056448E46d21D796C416A5'); 
 
     const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
     const phMock = await PriceHelperMock.attach('0xD8031cd30FC51cA9A198835d7E7E13404F7aBE84');
+
+    const Faucet = await ethers.getContractFactory('Faucet');
+    const faucet = await Faucet.attach('0x9814C9139A0B897d2F22B7610B1662C1104485A8');
 }
 
 main().catch((error) => {

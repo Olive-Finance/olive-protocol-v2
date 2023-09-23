@@ -77,11 +77,8 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   const stgy = await Strategy.deploy(glp.address, sGlp.address);
   await stgy.deployed();
 
-  await pool.grantRole(u1.address);
-  await pool.grantRole(u2.address);
   await aUSDC.grantRole(pool.address);
   await doUSDC.grantRole(pool.address);
-
   await sGlp.grantRole(stgy.address);
   await pool.setFees(fees.address);
 
@@ -101,9 +98,9 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await usdc.grantRole(glpMockManager.address);
 
 
-  const GLPMockRouter1 = await ethers.getContractFactory("GLPMock");
-  const glpMockRouter1 = await GLPMockRouter.deploy(glpMockManager.address);
-  await glpMockRouter1.deployed();
+  const GLPMockRouter = await ethers.getContractFactory("GLPMock");
+  const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
+  await glpMockRouter.deployed();
 
   const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
   const phMock = await PriceHelperMock.deploy();
@@ -122,7 +119,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await stgy.setFees(fees.address);
 
   // Setting the parameters for glp vault core
-  await glpVault.setRewardsRouter(glpMockRouter1.address);
+  await glpVault.setRewardsRouter(glpMockRouter.address);
   await glpVault.setVaultManager(vaultManager.address);
   await glpVault.setVaultKeeper(vaultKeeper.address);
   await glpVault.setLendingPool(pool.address);
@@ -204,7 +201,7 @@ task("deploy", "Deploys contract, get wallets, and outputs files", async (taskAr
   await vaultManager.deposit(toN(5), toN(5), toN(25), toN(0.01));
 
   await owner.sendTransaction({
-    to: u5,
+    to: faucet.address,
     value: ethers.utils.parseEther("10.0"), // Sends exactly 5.0 ether
   });
 

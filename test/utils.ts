@@ -15,6 +15,7 @@ export async function deployLendingPool() {
     const u2 = accounts[2];
     const u3 = accounts[3];
     const treasury = accounts[4];
+    const u5 = accounts[5];
 
     // Following are the asset tokens which each of the pools use
     // USDC
@@ -43,14 +44,17 @@ export async function deployLendingPool() {
     await fees.deployed();
     await fees.setTreasury(treasury.address);
 
+    const Limit = await ethers.getContractFactory("Limit");
+    const limit = await Limit.deploy();
+    await limit.deployed();
 
     // USDC Lending pool
     const LPUSDC = await ethers.getContractFactory("LendingPool");
-    const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
+    const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address, limit.address);
     
     await pool.deployed();
 
-    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury};
+    return {owner, u1, u2, u3, u5, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury, limit};
 }
 
 export async function deployStategy() {
@@ -82,7 +86,7 @@ export async function deployStategy() {
 }
 
 export async function deployGLPVault() {
-    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees} = await loadFixture(deployLendingPool);
+    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, limit} = await loadFixture(deployLendingPool);
     await loadFixture(setupLendingPool);
     const {glp, wETH, sGlp, stgy} = await loadFixture(deployStategy);
 
@@ -133,6 +137,8 @@ export async function deployGLPVault() {
     await glpVault.setStrategy(stgy.address);
 
     await pool.grantRole(vaultKeeper.address); // For enabling the settle
+
+    await limit.setLimit(glpVault.address, toN(10, 36));
     
     // set allowances
     await glpVault.setAllowance(glp.address, stgy.address, true);
@@ -228,7 +234,7 @@ export async function deployGLPVaultKeeper() {
 }
 
 export async function setupLendingPool() {
-    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury} = await loadFixture(deployLendingPool);
+    const {owner, u1, u2, u3, u5, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury, limit} = await loadFixture(deployLendingPool);
     await pool.grantRole(u1.address);
     await pool.grantRole(u2.address);
     await aUSDC.grantRole(pool.address);
@@ -238,8 +244,12 @@ export async function setupLendingPool() {
     await usdc.connect(u1).approve(pool.address, toN(1e20));
     await usdc.connect(u2).approve(pool.address, toN(1e20));
 
+    await limit.setPool(pool.address);
+    await limit.setLimit(u2.address, toN(500));
+    await limit.setLimit(u5.address, toN(2200, 6));
+
     await pool.setFees(fees.address);
-    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
+    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, u5, treasury, limit};
 }
 
 export async function deployOliveManager() {

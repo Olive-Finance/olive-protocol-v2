@@ -57,4 +57,6 @@ interface IVaultManager {
     event Deposit(address indexed _vault, address indexed _user, uint256 _amount);
     event Withdraw(address indexed _vault, address indexed _user, uint256 _amount);
     event Leverage(address indexed _vault, address indexed _user, uint256 fromLeverage, uint256 toLeverage);
+    event Mint(address indexed _vault, address indexed _user, uint256 _shares, uint256 _assetAmount);
+    event Burn(address indexed _vault, address indexed _user, uint256 _shares, uint256 _assetAmount);
 }

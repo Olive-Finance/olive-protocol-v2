@@ -133,9 +133,9 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     function _repay(address _liquidator, address _user, uint256 _amount, uint256 _sFactor) internal {
         ILendingPool pool = ILendingPool(vaultCore.getLendingPool());
         if (_sFactor > 0) {
-             pool.repayWithSettle(_liquidator, _user, _amount, _sFactor);
+             pool.repayWithSettle(_liquidator, address(vaultCore), _user, _amount, _sFactor);
         } else {
-            pool.repay(_liquidator, _user, _amount);
+            pool.repay(_liquidator, address(vaultCore), _user, _amount);
         }
     }
 

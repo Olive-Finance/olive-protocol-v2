@@ -32,8 +32,8 @@ describe ("Invalid input validations", function () {
         await expect(pool.connect(u1).borrow(u2.address, u2.address, toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
         await expect(pool.connect(u1).borrow(u2.address, u2.address, toN(10))).to.be.revertedWith('POL: Insufficient liquidity to borrow');
 
-        await expect(pool.connect(u1).repay(u2.address, ethers.constants.AddressZero, toN(10))).to.be.revertedWith('POL: Null address');
-        await expect(pool.connect(u1).repay(u2.address, ethers.constants.AddressZero, toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
+        await expect(pool.connect(u1).repay(u2.address, u2.address, ethers.constants.AddressZero, toN(10))).to.be.revertedWith('POL: Null address');
+        await expect(pool.connect(u1).repay(u2.address, u2.address, ethers.constants.AddressZero, toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
 
         await expect(pool.connect(u1).supply(toN(0))).to.be.revertedWith('POL: Zero/Negative amount');
 

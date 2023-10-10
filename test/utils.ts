@@ -103,7 +103,7 @@ export async function deployGLPVault() {
     const glpMockManager = await GLPManager.deploy(glp.address);
     await glpMockManager.deployed();
     await glp.grantRole(glpMockManager.address);
-    await usdc.grantRole(glpMockManager.address);
+    await usdc.grantRole(glpMockManager.address); 
 
     const GLPMockRouter = await ethers.getContractFactory("GLPMock");
     const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
@@ -130,7 +130,7 @@ export async function deployGLPVault() {
     await glpVault.setRewardsRouter(glpMockRouter.address);
     await glpVault.setVaultManager(vaultManager.address);
     await glpVault.setVaultKeeper(vaultKeeper.address);
-    await glpVault.setLendingPool(pool.address);
+    await glpVault.setLendingPool(pool.address); //todo
     await glpVault.setLeverage(ethers.utils.parseUnits("5", 18));
     await glpVault.setPriceHelper(phMock.address);
     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
@@ -144,8 +144,8 @@ export async function deployGLPVault() {
     await glpVault.setAllowance(glp.address, stgy.address, true);
     await glpVault.setAllowance(usdc.address, pool.address, true);
     await glpVault.setAllowance(usdc.address, glpMockManager.address, true);
-
-    const ArbSysMock = await ethers.getContractFactory("ArbSysMock");
+ 
+    const ArbSysMock = await ethers.getContractFactory("ArbSysMock"); 
     const arbSys = await ArbSysMock.deploy();
     await arbSys.deployed();
     await glpVault.setArbSysAddress(arbSys.address);

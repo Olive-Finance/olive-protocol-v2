@@ -9,6 +9,7 @@ import {ILimit} from "./interfaces/ILimit.sol";
 import {IRateCalculator} from "./interfaces/IRateCalculator.sol";
 import {IMintable} from "../interfaces/IMintable.sol";
 import {IFees} from "../fees/interfaces/IFees.sol";
+import {IDToken} from "./interfaces/IDToken.sol";
 import {Allowed} from "../utils/Allowed.sol";
 
 import {Reserve} from "./library/Reserve.sol";
@@ -35,12 +36,12 @@ contract LendingPool is ILendingPool, Allowed {
     }
 
     // View functions
-    function _debt() internal view returns (uint256) {
+    function _debt() public view returns (uint256) {
         IERC20 dToken = reserve._dToken;
         return (dToken.totalSupply() * reserve.getNormalizedDebt())/Constants.PINT;
     }
 
-    function _available() internal view returns (uint256) {
+    function _available() public view returns (uint256) {
         IERC20 aToken = reserve._aToken;
         return (aToken.totalSupply() * reserve.getNormalizedIncome())/Constants.PINT;
     }
@@ -67,6 +68,14 @@ contract LendingPool is ILendingPool, Allowed {
 
     function getDebt(address _user) external override view returns (uint256) {
         uint256 balance = reserve._dToken.balanceOf(_user);
+        if (balance == 0) {
+            return balance;
+        }
+        return (reserve.getNormalizedDebt() * balance) / Constants.PINT;
+    }
+
+    function getDebtByVault(address _vault, address _user) external override view returns (uint256) {
+        uint256 balance = IDToken(address(reserve._dToken)).debtOf(_vault, _user);
         if (balance == 0) {
             return balance;
         }
@@ -129,6 +138,13 @@ contract LendingPool is ILendingPool, Allowed {
         reserve._borrowRate = _borrowRate;
     }
 
+    // Migration to new lending pool
+    function migrate(address _to) external whenPaused onlyOwner {
+        // transfer the tokens
+        IERC20 want = reserve._want;
+        want.transfer(_to, want.balanceOf(address(this)));
+    }
+
     function mintFees() external onlyOwner {
         uint256 scaledAmount = (totalFees * Constants.PINT) / reserve._supplyIndex;
         totalFees = 0;
@@ -171,7 +187,7 @@ contract LendingPool is ILendingPool, Allowed {
         limit.consumeLimit(_to, _amount); // Limit update
 
         uint256 scaledBalance = (_amount * Constants.PINT) / reserve._borrowIndex;
-        IMintable(address(reserve._dToken)).mint(_user, scaledBalance);
+        IDToken(address(reserve._dToken)).mintuv(_to, _user, scaledBalance);
         reserve._want.transfer(_to, _amount);
 
         return _amount;
@@ -199,9 +215,11 @@ contract LendingPool is ILendingPool, Allowed {
         require(_shares <= aToken.balanceOf(_user), "POL: Not enough shares");
 
         uint256 value = (reserve.getNormalizedIncome() * _shares) / Constants.PINT ;
+        console.log("value", value);
         updateReserve(uint256(0), value, uint256(0), uint256(0));
-
+        
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
+        console.log("wantAmount", wantAmount);
 
         uint256 dc = debtCorrection(); 
         badDebt -= wantAmount * (Constants.PINT - dc)/Constants.PINT;
@@ -215,14 +233,16 @@ contract LendingPool is ILendingPool, Allowed {
 
     function repay(
         address _from,
+        address _vault,
         address _user,
         uint256 _amount // Want token
     ) external override returns (bool) {
-        return _repayDebt(_from, _user, _amount);
+        return _repayDebt(_from, _vault, _user, _amount);
     }
 
     function _repayDebt(
         address _from,
+        address _vault,
         address _user,
         uint256 _amount
     ) internal whenNotPaused nonReentrant returns (bool) {
@@ -233,8 +253,8 @@ contract LendingPool is ILendingPool, Allowed {
          
         uint256 burnableShares = (_amount * Constants.PINT) / reserve._borrowIndex ;
         reserve._want.transferFrom(_from, address(this), _amount);
-        IMintable(address(reserve._dToken)).burn(_user, burnableShares);
-        limit.enhaceLimit(_from, _amount); // todo : limit is updated to user in case of liquidation 
+        IDToken(address(reserve._dToken)).burnuv(_vault, _user, burnableShares);
+        limit.enhaceLimit(_vault, _amount); // todo : limit is updated to user in case of liquidation 
         return true;
     }
  
@@ -249,11 +269,12 @@ contract LendingPool is ILendingPool, Allowed {
 
     function repayWithSettle(
         address _from, 
+        address _vault,
         address _user, 
         uint256 _amount,
         uint256 _sFactor
     ) external override onlyAllowed returns (bool) {
-        _repayDebt(_from, _user, _amount);
+        _repayDebt(_from, _vault, _user, _amount);
         _settle(_user, _sFactor);
         return true;
     }

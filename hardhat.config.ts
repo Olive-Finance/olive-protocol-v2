@@ -233,6 +233,10 @@ const config: HardhatUserConfig = {
       url: "https://arbitrum-goerli.publicnode.com",
       chainId: 421613,
     },
+    mtltest: {
+      url: "https://rpc.testnet.mantle.xyz/​",
+      chainId: 5001,
+    },
     arbmain: {
       url: "https://arb1.arbitrum.io/rpc",
       chainId: 42161,

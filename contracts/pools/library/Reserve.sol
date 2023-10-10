@@ -112,10 +112,10 @@ library Reserve {
         uint256 repay
     ) internal {
         uint256 debt = totalBorrwedDebt + borrow - repay;
-        uint256 liquidity = totalliquidity + supply - withdraw + repay;
+        uint256 liquidity = totalliquidity + supply - withdraw;
         uint256 utilization = 0;
-        if (debt!=0) {
-            utilization = (debt * Constants.PINT) / (liquidity + totalBorrwedDebt);
+        if (liquidity!=0) {
+            utilization = (debt * Constants.PINT) / (liquidity);
         }
         reserve._borrowRate = reserve._rcl.borrowRate(utilization);
         reserve._supplyRate = reserve._rcl.supplyRate(utilization);

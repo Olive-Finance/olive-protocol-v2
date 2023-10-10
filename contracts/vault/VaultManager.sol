@@ -123,11 +123,12 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _shares = (_amount * Constants.PINT) / vaultCore.getPPS();
         vaultCore.mintShares(_user, _shares);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
+        emit Mint(address(this), _user, _shares, _amount);
         return _shares;
     }
 
     function _repay(address _user, uint256 _amount) internal returns (uint256) {
-        ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), _user, _amount);
+        ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), address(vaultCore), _user, _amount);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
         return _amount;
     }
@@ -220,6 +221,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _shares = ((_userLeverage - _leverage) * vaultCore.getCollateral(_user)) / vaultCore.getPPS();
         vaultCore.burnShares(_user, _shares);
         uint256 sold = vaultCore.sell(ILendingPool(vaultCore.getLendingPool()).wantToken(), _redeem(_shares));
+        emit Burn(address(this), _user, _shares, (_shares * vaultCore.getPPS()/Constants.PINT));
         return _repay(_user, sold);
     }
 
@@ -248,6 +250,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 value = _redeem(_shares);
         vaultCore.transferAsset(_user, value);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
+        emit Burn(address(this), _user, _shares, (_shares * vaultCore.getPPS()/Constants.PINT));
         return value;
     }
 

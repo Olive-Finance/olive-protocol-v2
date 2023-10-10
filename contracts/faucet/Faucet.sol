@@ -9,19 +9,21 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract Faucet is Allowed {
     address public usdc;
     address public glp;
+    address public gm;
 
-    uint256 constant public USDC_TO_MINT = 1000e6;
-    uint256 constant public GLP_TO_MINT = 1000e18;
+    uint256 constant public USDC_TO_MINT = 2000e6;
+    uint256 constant public LP_TO_MINT = 1000e18;
     uint256 constant public ETHER_TO_TRASNFER = 0.01 ether;
 
     uint256 constant public MIN_ETHER_BALANCE_TO_TRASNFER = 0.001 ether;
     uint256 constant public MIN_USDC_BALANCE_TO_MINT = 1e6;
-    uint256 constant public MIN_GLP_BALANCE_TO_MINT = 1e18;
+    uint256 constant public MIN_LP_BALANCE_TO_MINT = 1e18;
  
     // empty contractor
-    constructor(address _usdc, address _glp) Allowed(msg.sender) {
+    constructor(address _usdc, address _glp, address _gm) Allowed(msg.sender) {
         usdc = _usdc;
         glp = _glp;
+        gm = _gm;
     }
 
     function setUSDC(address _usdc) external onlyOwner {
@@ -34,11 +36,17 @@ contract Faucet is Allowed {
         glp = _glp;
     }
 
+    function setGM(address _gm) external onlyOwner {
+        require(_gm != address(0), "Faucet: Invalid address");
+        gm = _gm;
+    }
+
     function mint() external {
         address sender = msg.sender;
         uint256 etherAmount = payable(sender).balance;
         uint256 usdcAmount = IERC20(usdc).balanceOf(sender);
         uint256 glpAmount = IERC20(glp).balanceOf(sender);
+        uint256 gmAmount = IERC20(gm).balanceOf(sender);
 
         if (etherAmount < MIN_ETHER_BALANCE_TO_TRASNFER && address(this).balance >= ETHER_TO_TRASNFER) {
             transferEther(sender);
@@ -48,8 +56,12 @@ contract Faucet is Allowed {
             mintUSDC(sender);
         }
 
-        if (glpAmount < MIN_GLP_BALANCE_TO_MINT) {
-            mintGLP(sender);
+        if (glpAmount < MIN_LP_BALANCE_TO_MINT) {
+            mintLP(glp, sender);
+        }
+
+        if (gmAmount < MIN_LP_BALANCE_TO_MINT) {
+            mintLP(gm, sender);
         }
     }
 
@@ -58,9 +70,9 @@ contract Faucet is Allowed {
         IMintable(usdc).mint(_to, USDC_TO_MINT);
     }
 
-    function mintGLP(address _to) internal {
-        require(glp != address(0), "Faucet: GLP not set");
-        IMintable(glp).mint(_to, GLP_TO_MINT);
+    function mintLP(address token, address _to) internal {
+        require(token != address(0), "Faucet: GLP not set");
+        IMintable(token).mint(_to, LP_TO_MINT);
     }
 
     function transferEther(address _to) internal {

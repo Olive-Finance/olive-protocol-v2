@@ -75,7 +75,6 @@ contract DToken is ERC20, Allowed, IMintable, IDToken {
     ) external override onlyAllowed returns (bool) {
         require(_amount > 0, "ERC20: Invalid amount");
         require(balanceOf(_user) >= _amount, "ERC20: Insufficient balance");
-        console.log(debtPerVault[_vault][_user], _vault, _user, _amount);
         require(debtPerVault[_vault][_user] >= _amount, "ERC20: Insufficient debt");
         _burn(_user, _amount);
         debtPerVault[_vault][_user] -= _amount;

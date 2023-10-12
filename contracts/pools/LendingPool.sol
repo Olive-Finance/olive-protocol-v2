@@ -215,11 +215,10 @@ contract LendingPool is ILendingPool, Allowed {
         require(_shares <= aToken.balanceOf(_user), "POL: Not enough shares");
 
         uint256 value = (reserve.getNormalizedIncome() * _shares) / Constants.PINT ;
-        console.log("value", value);
+
         updateReserve(uint256(0), value, uint256(0), uint256(0));
         
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
-        console.log("wantAmount", wantAmount);
 
         uint256 dc = debtCorrection(); 
         badDebt -= wantAmount * (Constants.PINT - dc)/Constants.PINT;

@@ -76,3 +76,24 @@ main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
   });
+
+
+// Portal test
+
+const accounts = await ethers.getSigners();
+const owner = accounts[0];
+
+const Token = await ethers.getContractFactory("Token");
+const olive = await Token.attach('0x49f81cc72ED2d5C85b8483e90181bE73EefdAfd3');
+const Portal = await ethers.getContractFactory("Portal");
+const portal = await Portal.attach('0x099D74F7156D3D9bC24248f921d3C362f12be60e');
+
+
+
+const accounts = await ethers.getSigners();
+const owner = accounts[0];
+
+const Token = await ethers.getContractFactory("Token");
+const olive = await Token.attach('0x50B71F596243D216a73254004473812b4bCa5644');
+const Portal = await ethers.getContractFactory("Portal");
+const portal = await Portal.attach('0xD13239639816835dF69FAE2F1A2efC4c00bD3a35');

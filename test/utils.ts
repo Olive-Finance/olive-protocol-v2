@@ -138,7 +138,7 @@ export async function deployGLPVault() {
 
     await pool.grantRole(vaultKeeper.address); // For enabling the settle
 
-    await limit.setLimit(glpVault.address, toN(10, 36));
+    await limit.setLimit(glpVault.address, ethers.utils.parseUnits('10', 36));
     
     // set allowances
     await glpVault.setAllowance(glp.address, stgy.address, true);

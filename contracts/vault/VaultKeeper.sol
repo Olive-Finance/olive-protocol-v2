@@ -110,7 +110,7 @@ contract VaultKeeper is IVaultKeeper, Allowed, Governable {
     function handleBadDebt(address _liquidator, address _user, uint256 _position, uint256 _positionInWant, uint256 _toRepay) internal returns (uint256) {
         uint256 toPay = min(_positionInWant, _toRepay);
         uint256 toTransfer = (_position * toPay) / _positionInWant;
-        uint256 sFactor = (toTransfer * Constants.PINT) / _position; // sFactor - is settlement factor
+        uint256 sFactor = (toTransfer * Constants.PINT) / _position; // sFactor - is settlement factor for the debt
         vaultCore.burnShares(_user, _toShares(toTransfer));
         _repay(_liquidator, _user, toPay, sFactor);
         return toTransfer;

@@ -90,7 +90,7 @@ contract LendingPool is ILendingPool, Allowed {
         return (reserve.getNormalizedIncome() * balance)/Constants.PINT;
     }
 
-    function getMaxBorrableAmount(address _to) external override view returns (uint256) {
+    function getMaxBorrowableAmount(address _to) external override view returns (uint256) {
         if (_to == address(0)) return 0;
         uint256 v1 = reserve._want.balanceOf(address(this));
         uint256 v2 = limit.getLimit(_to);
@@ -257,12 +257,13 @@ contract LendingPool is ILendingPool, Allowed {
         return true;
     }
  
-    function _settle(address _user, uint256 _sFactor) internal {
+    function _createBadDebt(address _user, uint256 _sFactor) internal {
         uint256 debt = reserve._dToken.balanceOf(_user);
         if (debt == 0) return;
-        uint256 _bDebt = (debt * reserve.getNormalizedDebt() * _sFactor) / Constants.PINT_POW_2;
+        uint256 dToBurn = (debt * _sFactor) / Constants.PINT;
+        uint256 _bDebt = (dToBurn * reserve.getNormalizedDebt()) / Constants.PINT;
         badDebt += _bDebt; 
-        IMintable(address(reserve._dToken)).burn(_user, debt);
+        IMintable(address(reserve._dToken)).burn(_user, dToBurn);
         emit BadDebt(_user, _bDebt);
     }
 
@@ -274,7 +275,7 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 _sFactor
     ) external override onlyAllowed returns (bool) {
         _repayDebt(_from, _vault, _user, _amount);
-        _settle(_user, _sFactor);
+        _createBadDebt(_user, _sFactor);
         return true;
     }
 }

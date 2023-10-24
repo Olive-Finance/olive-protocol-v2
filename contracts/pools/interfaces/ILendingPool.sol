@@ -20,7 +20,7 @@ interface ILendingPool {
     function getDebtByVault(address _vault, address _user) external view returns (uint256);
     function getBalance(address _user) external view returns (uint256);
 
-    function getMaxBorrableAmount(address _to) external view returns (uint256);
+    function getMaxBorrowableAmount(address _to) external view returns (uint256);
 
     //events
     event Fund(address indexed _caller, address indexed _depositor, uint256 _amount);

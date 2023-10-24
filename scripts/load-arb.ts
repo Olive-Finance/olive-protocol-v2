@@ -59,6 +59,9 @@ async function mainGLP() {
 
     const Faucet = await ethers.getContractFactory('Faucet');
     const faucet = await Faucet.attach('0x65f6E41a9CfECFC5F67D7d8B948E6f92C24d00A8');
+
+    const CallT = await ethers.getContractFactory('Caller');
+    const callT = await CallT.attach('0xBd76A1703A20d8B9398491096D98662a6358ea75');
 }
 
 async function mainGM() {

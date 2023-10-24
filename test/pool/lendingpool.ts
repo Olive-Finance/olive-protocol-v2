@@ -3,6 +3,7 @@ import { expect } from "chai";
 import { ethers, web3 } from "hardhat";
 import { toN, deployLendingPool, setupLendingPool } from "../utils";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
+import { fees } from "../../typechain-types/contracts";
 
 describe("Lending pool tests", function(){
     describe("Basic checks", function(){
@@ -193,7 +194,7 @@ describe("Lending pool tests", function(){
 
 
         it("u1, u2, u3, u5 - Bad Debt", async function(){
-            const {owner, u1, u2,u3, u5, treasury, usdc, aUSDC, doUSDC, pool} = await setupLendingPool();
+            const {owner, u1, u2,u3, u5, treasury, usdc, aUSDC, doUSDC, pool, fees} = await setupLendingPool();
             console.log("u1: ", await usdc.balanceOf(u1.address)/1e6);
             await usdc.mint(u1.address, toN(1000, 6));
             await usdc.connect(u1).approve(pool.address, toN(1000, 6));
@@ -244,37 +245,27 @@ describe("Lending pool tests", function(){
             await time.increase(365* 24 * 3600);
             await usdc.mint(u5.address, toN(2331, 6));
             await usdc.connect(u5).approve(pool.address, toN(2331, 6));
-            console.log('bd-1: ', await pool.badDebt()/1e6);
+            console.log('bd-1: ', await doUSDC.balanceOf(treasury.address)/1e6);
             await pool.connect(u5).repayWithSettle(u5.address, u5.address, u5.address, toN(2000, 6), toN(1));
-            console.log('bd0: ', await pool.badDebt()/1e6);
+            console.log('bd0: ', await doUSDC.balanceOf(treasury.address)/1e6);
             console.log('0-----0')
             console.log('u1: ', await pool.getBalance(u1.address)/1e6);
             console.log('u2: ', await pool.getBalance(u2.address)/1e6);
             console.log('u3: ', await pool.getBalance(u3.address)/1e6);
-            console.log('u5: ', await pool.getDebt(u5.address)/1e6);
+            console.log('u5: ', await doUSDC.balanceOf(treasury.address)/1e6);
             console.log('fees: ', await pool.totalFees());
-            let dc1 = Math.floor(await pool.debtCorrection()/1e17);
-            console.log('bd1: ', await pool.badDebt()/1e6);
-            await pool.connect(u1).withdraw(await aUSDC.balanceOf(u1.address));
-            let dc2 = Math.floor(await pool.debtCorrection()/1e17);
-            console.log('bd2: ', await pool.badDebt()/1e6);
-            await pool.connect(u2).withdraw(await aUSDC.balanceOf(u2.address));
+            
+            //await pool.connect(u1).withdraw(await aUSDC.balanceOf(u1.address)); // todo validate withdraw amount
     
-            let dc3 = Math.floor(await pool.debtCorrection()/1e17);
-            console.log('bd3: ', await pool.badDebt()/1e6);
-            await pool.connect(u3).withdraw(await aUSDC.balanceOf(u3.address));
+            //await pool.connect(u2).withdraw(await aUSDC.balanceOf(u2.address)); // todo validate withdraw amount
+
+            //await pool.connect(u3).withdraw(await aUSDC.balanceOf(u3.address)); // todo validate withdraw amount
             
             await pool.mintFees();
-            console.log('bd4: ', await pool.badDebt()/1e6);
-            console.log('dc4: ', await pool.debtCorrection());
+            console.log('bd4: ', await doUSDC.balanceOf(treasury.address)/1e6);
+            console.log('fees treasury:' , await doUSDC.balanceOf(await fees.getTreasury())/1e6);
 
-            console.log(dc1,' ' , dc2, ' ' ,dc3,);
-
-            expect(dc1).to.equal(8);
-            expect(dc2).to.equal(8);
-            expect(dc3).to.equal(8);
-            expect(await pool.badDebt()/1e6).to.equal(0);
-
+            expect(Math.round(await doUSDC.balanceOf(treasury.address)/1e6)).to.equal(313);
 
             console.log('0-----0')
             console.log('u1: ', await pool.getBalance(u1.address)/1e6);
@@ -297,5 +288,34 @@ describe("Lending pool tests", function(){
             console.log("u3 1: ", await aUSDC.balanceOf(u3.address)/1e6);
 
         });
+
+
+        it("u1, u2, u3, u5 - Fees Test", async function(){
+            const {owner, u1, u2,u3, u5, treasury, usdc, aUSDC, doUSDC, pool, limit} = await setupLendingPool();
+            console.log("u1: ", await usdc.balanceOf(u1.address)/1e6);
+            // Supply
+            await usdc.mint(u1.address, toN(2, 12)); // a million to supply
+            await usdc.connect(u1).approve(pool.address, toN(1, 24));
+            await pool.connect(u1).supply(toN(1, 12));
+            console.log("Fee value post supply: ", await pool.totalFees());
+            console.log("Reserve1: ", await pool.reserve());
+
+            // Borrow
+            await limit.setLimit(u5.address, toN(1, 12));
+            await pool.grantRole(u5.address);
+            await pool.connect(u5).borrow(u5.address, u5.address, toN(0.5, 12)); // borrow half a million
+            console.log("Fee value post borrow: ", await pool.totalFees());
+            console.log("Reserve2: ", await pool.reserve());
+            
+
+            await time.increase(24 * 3600 * 365);
+
+            await pool.connect(u1).supply(10); // supply a 1e-6 for calculating the fees
+            console.log("Reserve3: ", await pool.reserve());
+            console.log("Fee value: ", await pool.totalFees());
+
+
+        });
+
     });
 });

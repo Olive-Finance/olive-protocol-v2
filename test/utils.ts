@@ -249,7 +249,7 @@ export async function setupLendingPool() {
     await limit.setLimit(u5.address, toN(2200, 6));
 
     await pool.setFees(fees.address);
-    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, u5, treasury, limit};
+    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, u5, treasury, limit, fees};
 }
 
 export async function deployOliveManager() {

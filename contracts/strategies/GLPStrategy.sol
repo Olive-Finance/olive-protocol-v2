@@ -23,7 +23,6 @@ contract GLPStrategy is IStrategy, Allowed {
     IClaimRouter public claimRouter;
     IGLPRouter public glpRouter;
 
-    uint256 public lastHarvest;
     uint256 public pps;
     address public keeper;
 
@@ -121,7 +120,6 @@ contract GLPStrategy is IStrategy, Allowed {
             uint256 before = this.balance();
             mintGlp();
             emit Harvest(address(asset), address(this), this.balance() - before);
-            lastHarvest = block.timestamp;
         }
         setPPS();
     }

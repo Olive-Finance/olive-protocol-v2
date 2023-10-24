@@ -72,7 +72,7 @@ contract StakingRewards is Allowed {
         duration = _duration;
     }
 
-    function setMetaManager(address _oliveMgr) external onlyOwner {
+    function setOliveManager(address _oliveMgr) external onlyOwner {
         require(_oliveMgr != address(0), "STKR: Invalid olive manager");
         oliveMgr = IRewardManager(_oliveMgr);
     }
@@ -148,6 +148,8 @@ contract StakingRewards is Allowed {
     function refreshReward(address _account) external updateReward(_account) {}
     
     // Allows the owner to set the mining rewards.
+    // todo - have an option to stop the review 
+    // todo - remove else block and also remove the rewardRate > 0 check
     function notifyRewardAmount(uint256 _amount) external onlyOwner updateReward(address(0)) {
         if (block.timestamp >= finishAt) {
             rewardRate = _amount / duration;
@@ -156,7 +158,7 @@ contract StakingRewards is Allowed {
                 rewardRate;
             rewardRate = (_amount + remainingRewards) / duration;
         }
-
+        
         require(rewardRate > 0, "reward rate = 0");
 
         finishAt = block.timestamp + duration;

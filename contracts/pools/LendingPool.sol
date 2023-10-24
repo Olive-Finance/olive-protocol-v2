@@ -21,7 +21,6 @@ contract LendingPool is ILendingPool, Allowed {
     Reserve.ReserveData public reserve;
     IFees public fees;
     uint256 public totalFees;
-    uint256 public badDebt;
     ILimit public limit;
 
     constructor(
@@ -95,19 +94,6 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 v1 = reserve._want.balanceOf(address(this));
         uint256 v2 = limit.getLimit(_to);
         return v1 > v2 ? v2 : v1;
-    }
-
-    function debtCorrection() public view returns (uint256) {
-        uint256 totalSupplied = (reserve.getNormalizedIncome() * reserve._aToken.totalSupply()) / Constants.PINT;
-        if (badDebt >= totalSupplied) return Constants.ZERO;
-        return ((totalSupplied - badDebt) * Constants.PINT) / totalSupplied;
-    }
-
-    function repayBadDebt(uint256 _amount) external {
-        require(_amount > 0, "POL: Zero/Negative amount");
-        uint256 toRepay = _amount > badDebt ? badDebt : _amount;
-        reserve._want.transferFrom(msg.sender, address(this), toRepay);
-        badDebt -= toRepay;
     }
 
     function setFees(address _fees) external onlyOwner {
@@ -219,11 +205,8 @@ contract LendingPool is ILendingPool, Allowed {
         updateReserve(uint256(0), value, uint256(0), uint256(0));
         
         uint256 wantAmount = (_shares * reserve._supplyIndex) / Constants.PINT;
+        require(wantAmount <= reserve._want.balanceOf(address(this)), "POL: Not enough balance in pool");
 
-        uint256 dc = debtCorrection(); 
-        badDebt -= wantAmount * (Constants.PINT - dc)/Constants.PINT;
-        wantAmount = (wantAmount * dc) / Constants.PINT;
-        
         IMintable(address(aToken)).burn(_user, _shares);
         reserve._want.transfer(_user, wantAmount);
 
@@ -253,7 +236,7 @@ contract LendingPool is ILendingPool, Allowed {
         uint256 burnableShares = (_amount * Constants.PINT) / reserve._borrowIndex ;
         reserve._want.transferFrom(_from, address(this), _amount);
         IDToken(address(reserve._dToken)).burnuv(_vault, _user, burnableShares);
-        limit.enhaceLimit(_vault, _amount); // todo : limit is updated to user in case of liquidation 
+        limit.enhaceLimit(_vault, _amount); // Limit update
         return true;
     }
  
@@ -262,8 +245,8 @@ contract LendingPool is ILendingPool, Allowed {
         if (debt == 0) return;
         uint256 dToBurn = (debt * _sFactor) / Constants.PINT;
         uint256 _bDebt = (dToBurn * reserve.getNormalizedDebt()) / Constants.PINT;
-        badDebt += _bDebt; 
         IMintable(address(reserve._dToken)).burn(_user, dToBurn);
+        IMintable(address(reserve._dToken)).mint(fees.getTreasury(), dToBurn);
         emit BadDebt(_user, _bDebt);
     }
 

@@ -182,6 +182,7 @@ contract VaultManager is IVaultManager, Allowed {
 
     function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage, bool onlyLeverage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
+        computeFeesForUser(_user); // Computing the accumulated fees
         require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
@@ -217,6 +218,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _leverage
     ) internal hfCheck returns (uint256) {
         uint256 _userLeverage = getLeverage(_user);
+        computeFeesForUser(_user); // Computing the accumulated fees
         require(_leverage < _userLeverage, "VM: Invalid leverage");
         uint256 _shares = ((_userLeverage - _leverage) * vaultCore.getCollateral(_user)) / vaultCore.getPPS();
         vaultCore.burnShares(_user, _shares);
@@ -248,7 +250,8 @@ contract VaultManager is IVaultManager, Allowed {
 
         vaultCore.burnShares(_user, _shares);
         uint256 value = _redeem(_shares);
-        vaultCore.transferAsset(_user, value);
+        uint256 chargedFees = chargeFee(_user);
+        vaultCore.transferAsset(_user, value-chargedFees);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
         emit Burn(address(this), _user, _shares, (_shares * vaultCore.getPPS()/Constants.PINT));
         return value;
@@ -258,5 +261,27 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 newFee = (balance() * fees.getMFee() * 
         (block.timestamp - fees.getLastUpdatedAt())) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
         fees.setFee(fees.getAccumulatedFee() + newFee, block.timestamp);
+    }
+
+    function computeFeesForUser(address _user) public {
+        (uint256 currentFee, uint256 updatedAt) = fees.getAccumulatedFeeForUser(_user);
+        uint256 newFee = (vaultCore.getPosition(_user)* fees.getMFee() * 
+        (block.timestamp - updatedAt)) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
+        fees.setFeeForUser(_user, currentFee + newFee, block.timestamp);
+    }
+
+    function chargeFee(address _user) public returns (uint256) {
+        (uint256 currentFee, uint256 updatedAt) = fees.getAccumulatedFeeForUser(_user);
+        uint256 newFee = (vaultCore.getPosition(_user)* fees.getMFee() * 
+        (block.timestamp - updatedAt)) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
+        newFee += currentFee;
+        uint256 maxFee = (vaultCore.getPosition(_user) * fees.getWithdrawalFee())/Constants.HUNDRED_PERCENT;
+        uint256 toCharge = newFee > maxFee ? newFee : maxFee; // Max fee is charged
+        if (toCharge == 0) {
+            return toCharge;
+        }
+        fees.setFeeForUser(_user, 0, block.timestamp);
+        vaultCore.transferAsset(fees.getTreasury(), toCharge); // Transferring the fee to treasury
+        return toCharge;
     }
 }

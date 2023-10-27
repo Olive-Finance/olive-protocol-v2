@@ -26,6 +26,11 @@ contract Fees is IFees, Allowed, Governable {
     uint256 public rewardRateforOliveholders;
     uint256 public yieldFeeLimit;
 
+    uint256 public withdrawalFee;
+
+    mapping(address => uint256) public userFees;
+    mapping(address => uint256) public userFeeUpdatedAt;
+
     // Empty constructor
     constructor() Allowed(msg.sender) Governable(msg.sender) {
         pFee = Constants.PerformanceFee;
@@ -34,6 +39,7 @@ contract Fees is IFees, Allowed, Governable {
         liquidatorFee = Constants.LiquidatorFee;
         rewardRateforOliveholders = Constants.RewardToOLVHolders;
         yieldFeeLimit = Constants.YieldFeeLimit;
+        withdrawalFee = Constants.WithdrawalFee;
     }
 
     function getPFee() external view override returns (uint256) { 
@@ -76,6 +82,14 @@ contract Fees is IFees, Allowed, Governable {
         return yieldFeeLimit;
     }
 
+    function getWithdrawalFee() external view override returns (uint256) {
+        return withdrawalFee;
+    }
+
+    function getAccumulatedFeeForUser(address _user) external view override returns (uint256, uint256) {
+        return (userFees[_user], userFeeUpdatedAt[_user]);
+    }
+
     function setTreasury(address _treasury) external override onlyOwner {
         require(_treasury != address(0), "FEE: Invalid treasury address");
         treasury = _treasury;
@@ -115,5 +129,15 @@ contract Fees is IFees, Allowed, Governable {
     function setYieldFeeLimit(uint256 _yieldFeeLimit) external override onlyGov {
         require(Constants.YIELD_LIMIT_FOR_FEES >= _yieldFeeLimit, "FEE: Invalid limit");
         yieldFeeLimit = _yieldFeeLimit;
+    }
+
+    function setFeeForUser(address _user, uint256 _fee, uint256 _updatedAt) external override onlyAllowed {
+        userFees[_user] = _fee;
+        userFeeUpdatedAt[_user] = _updatedAt;
+    }
+
+    function setWithdrawalFee(uint256 _withdrawalFee) external override onlyGov {
+        require(Constants.MAX_WITHDRAWAL_FEE >= _withdrawalFee, "FEE: Invalid withdrawal fee");
+        withdrawalFee = _withdrawalFee;
     }
 }

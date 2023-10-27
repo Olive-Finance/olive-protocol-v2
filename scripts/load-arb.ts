@@ -21,6 +21,14 @@ async function mainGLP() {
     const oGlp = await Token.attach('0x0Adef0bE94529472653147e2BF3b8DF031503f3f');
     const sGlp = await Token.attach('0x46F1cd8394A3eC87C43B69c866B5dC8745321412');
 
+
+    const Caller = await ethers.getContractFactory("Caller");
+    const caller = await Caller.attach('0xE040082C09841A3E06F76e5c6154f27462855AFE');
+
+    const Callee = await ethers.getContractFactory("Callee");
+    const callee = await Callee.attach('0x5EAbf0adadd9c9F3C869eb2fFB45Da2Ac0487060');
+
+
     //Rate calculator
     const RCL = await ethers.getContractFactory("RateCalculator");
     const rcl = await RCL.attach('0xcC3CF809a61466897a2081c3f115362Fa53b278b');

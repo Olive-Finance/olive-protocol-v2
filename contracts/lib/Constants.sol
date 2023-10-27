@@ -21,6 +21,7 @@ library Constants {
     // Limits 
     uint256 constant MAX_PERFORMANCE_FEE = 20e18; 
     uint256 constant MAX_MANAGEMENT_FEE = 5e18;
+    uint256 constant MAX_WITHDRAWAL_FEE = 1e18; //1%
 
     uint256 constant MAX_LIQUIDATION_FEE = 10e18; //10% 
     uint256 constant MAX_LIQUIDATOR_FEE = 50e18; //50% of Liquidation fee
@@ -68,4 +69,5 @@ library Constants {
     uint256 constant LiquidatorFee = 80e18; // 80%
     uint256 constant RewardToOLVHolders = 20e18; //20% 
     uint256 constant YieldFeeLimit = 30e18; // 30%
+    uint256 constant WithdrawalFee = 20e18; // 0.1%
 }

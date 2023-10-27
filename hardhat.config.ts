@@ -240,6 +240,10 @@ const config: HardhatUserConfig = {
     arbmain: {
       url: "https://arb1.arbitrum.io/rpc",
       chainId: 42161,
+    },
+    zetatest: {
+      url: "https://zetachain-athens-evm.blockpi.network/v1/rpc/public",
+      chainId: 7001,
     }
   },
   gas: 800000000,

@@ -12,6 +12,8 @@ interface IFees {
     function setFee(uint256 _fee, uint256 _updatedAt) external;
     function setRewardRateForOliveHolders(uint256 _rewardRate) external;
     function setYieldFeeLimit(uint256 _yieldFeeLimit) external;
+    function setWithdrawalFee(uint256 _withdrawalFee) external;
+    function setFeeForUser(address _user, uint256 _fee, uint256 _updatedAt) external;
 
     // view functions
     function getTreasury() external view returns (address);
@@ -24,6 +26,8 @@ interface IFees {
     function getLastUpdatedAt() external view returns (uint256);
     function getRewardRateForOliveHolders() external view returns (uint256);
     function getYieldFeeLimit() external view returns (uint256);
+    function getWithdrawalFee() external view returns (uint256);
+    function getAccumulatedFeeForUser(address _user) external view returns (uint256, uint256);
 
     event TreasuryChanged(address indexed _treasury);
 }

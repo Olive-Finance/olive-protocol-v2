@@ -182,7 +182,7 @@ contract VaultManager is IVaultManager, Allowed {
 
     function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage, bool onlyLeverage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
-        computeFeesForUser(_user); // Computing the accumulated fees
+        computeFeesForUser(_user, true); // Computing the accumulated fees
         require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
@@ -218,7 +218,7 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _leverage
     ) internal hfCheck returns (uint256) {
         uint256 _userLeverage = getLeverage(_user);
-        computeFeesForUser(_user); // Computing the accumulated fees
+        computeFeesForUser(_user, true); // Computing the accumulated fees
         require(_leverage < _userLeverage, "VM: Invalid leverage");
         uint256 _shares = ((_userLeverage - _leverage) * vaultCore.getCollateral(_user)) / vaultCore.getPPS();
         vaultCore.burnShares(_user, _shares);
@@ -248,9 +248,11 @@ contract VaultManager is IVaultManager, Allowed {
         require(IERC20(vaultCore.getLedgerToken()).balanceOf(_user) >= _shares, "VM: Shares overflow");
         require(_shares <= this.getBurnableShares(_user), "VM: Over leveraged");
 
+        uint256 position = vaultCore.getPosition(_user); // This is for calculating max fees
+        (uint256 userFees, uint256 timestamp) = computeFeesForUser(_user, false); // Computing the accumulated fees
         vaultCore.burnShares(_user, _shares);
         uint256 value = _redeem(_shares);
-        uint256 chargedFees = chargeFee(_user);
+        uint256 chargedFees = chargeFee(_user, userFees, timestamp, position);
         vaultCore.transferAsset(_user, value-chargedFees);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
         emit Burn(address(this), _user, _shares, (_shares * vaultCore.getPPS()/Constants.PINT));
@@ -263,24 +265,25 @@ contract VaultManager is IVaultManager, Allowed {
         fees.setFee(fees.getAccumulatedFee() + newFee, block.timestamp);
     }
 
-    function computeFeesForUser(address _user) public {
+    function computeFeesForUser(address _user, bool _save) internal returns (uint256, uint256) {
+        uint256 timestamp = block.timestamp;
         (uint256 currentFee, uint256 updatedAt) = fees.getAccumulatedFeeForUser(_user);
-        uint256 newFee = (vaultCore.getPosition(_user)* fees.getMFee() * 
-        (block.timestamp - updatedAt)) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
-        fees.setFeeForUser(_user, currentFee + newFee, block.timestamp);
+        uint256 newFee = (vaultCore.getPosition(_user)* fees.getUserMFee() * 
+        (timestamp - updatedAt)) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
+        newFee += currentFee;
+        if (_save) {
+            fees.setFeeForUser(_user, newFee, timestamp);
+        }
+        return (newFee, timestamp);
     }
 
-    function chargeFee(address _user) public returns (uint256) {
-        (uint256 currentFee, uint256 updatedAt) = fees.getAccumulatedFeeForUser(_user);
-        uint256 newFee = (vaultCore.getPosition(_user)* fees.getMFee() * 
-        (block.timestamp - updatedAt)) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
-        newFee += currentFee;
-        uint256 maxFee = (vaultCore.getPosition(_user) * fees.getWithdrawalFee())/Constants.HUNDRED_PERCENT;
-        uint256 toCharge = newFee > maxFee ? newFee : maxFee; // Max fee is charged
+    function chargeFee(address _user, uint256 _fee, uint256 _timestamp, uint256 _position) public returns (uint256) {
+        uint256 maxFee = (_position * fees.getWithdrawalFee())/Constants.HUNDRED_PERCENT;
+        uint256 toCharge = _fee > maxFee ? _fee : maxFee; // Max fee is charged
         if (toCharge == 0) {
             return toCharge;
         }
-        fees.setFeeForUser(_user, 0, block.timestamp);
+        fees.setFeeForUser(_user, 0, _timestamp);
         vaultCore.transferAsset(fees.getTreasury(), toCharge); // Transferring the fee to treasury
         return toCharge;
     }

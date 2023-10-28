@@ -7,6 +7,7 @@ module.exports = {
      'lzApp/NonBlockingLzApp.sol',
      'helper/PriceHelper.sol',
      'olive/Portal.sol',
-     'faucet/Faucet.sol'
+     'faucet/Faucet.sol',
+     'CallTest.sol',
      ]
 };

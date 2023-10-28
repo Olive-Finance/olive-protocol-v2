@@ -14,6 +14,7 @@ interface IFees {
     function setYieldFeeLimit(uint256 _yieldFeeLimit) external;
     function setWithdrawalFee(uint256 _withdrawalFee) external;
     function setFeeForUser(address _user, uint256 _fee, uint256 _updatedAt) external;
+    function setUserMFee(uint256 _umFee) external;
 
     // view functions
     function getTreasury() external view returns (address);
@@ -28,6 +29,7 @@ interface IFees {
     function getYieldFeeLimit() external view returns (uint256);
     function getWithdrawalFee() external view returns (uint256);
     function getAccumulatedFeeForUser(address _user) external view returns (uint256, uint256);
+    function getUserMFee() external view returns (uint256);
 
     event TreasuryChanged(address indexed _treasury);
 }

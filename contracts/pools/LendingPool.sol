@@ -96,6 +96,10 @@ contract LendingPool is ILendingPool, Allowed {
         return v1 > v2 ? v2 : v1;
     }
 
+    function getMaxBorrableAmount(address _to) external override view returns (uint256) {
+        return this.getMaxBorrowableAmount(_to);
+    }
+
     function setFees(address _fees) external onlyOwner {
         require(_fees != address(0), "POL: Invalid fees address");
         fees = IFees(_fees);

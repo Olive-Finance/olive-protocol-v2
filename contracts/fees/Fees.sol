@@ -28,8 +28,11 @@ contract Fees is IFees, Allowed, Governable {
 
     uint256 public withdrawalFee;
 
+    // user level fees
+    uint256 public userMFee; 
     mapping(address => uint256) public userFees;
     mapping(address => uint256) public userFeeUpdatedAt;
+
 
     // Empty constructor
     constructor() Allowed(msg.sender) Governable(msg.sender) {
@@ -40,6 +43,7 @@ contract Fees is IFees, Allowed, Governable {
         rewardRateforOliveholders = Constants.RewardToOLVHolders;
         yieldFeeLimit = Constants.YieldFeeLimit;
         withdrawalFee = Constants.WithdrawalFee;
+        userMFee = Constants.UserManagementFee;
     }
 
     function getPFee() external view override returns (uint256) { 
@@ -90,6 +94,10 @@ contract Fees is IFees, Allowed, Governable {
         return (userFees[_user], userFeeUpdatedAt[_user]);
     }
 
+    function getUserMFee() external view override returns (uint256) {
+        return userMFee;
+    }
+
     function setTreasury(address _treasury) external override onlyOwner {
         require(_treasury != address(0), "FEE: Invalid treasury address");
         treasury = _treasury;
@@ -103,6 +111,11 @@ contract Fees is IFees, Allowed, Governable {
     function setMFee(uint256 _mFee) external override onlyGov {
         require(_mFee <= Constants.MAX_MANAGEMENT_FEE, "FEE: Invalid management fee");
         mFee = _mFee;
+    }
+
+    function setUserMFee(uint256 _umFee) external override onlyGov {
+        require(_umFee <= Constants.MAX_MANAGEMENT_FEE, "FEE: Invalid management fee");
+        userMFee = _umFee;
     }
 
     function setLiquidationFee(uint256 _liquidationFee) external override onlyGov {

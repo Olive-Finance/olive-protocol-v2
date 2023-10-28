@@ -21,6 +21,7 @@ interface ILendingPool {
     function getBalance(address _user) external view returns (uint256);
 
     function getMaxBorrowableAmount(address _to) external view returns (uint256);
+    function getMaxBorrableAmount(address _to) external view returns (uint256); // temporary till the UI gets fixed
 
     //events
     event Fund(address indexed _caller, address indexed _depositor, uint256 _amount);

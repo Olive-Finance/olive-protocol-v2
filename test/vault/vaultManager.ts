@@ -48,7 +48,7 @@ describe("VaultManager checks", function(){
         });
 
         it("Deposit 1000GLP, with leverage and deleverage withdraw max", async function(){
-            const {owner, glp, u1, doUSDC, vaultManager, oGlp} = await loadFixture(deployGLPVault);
+            const {owner, glp, u1, doUSDC, vaultManager, oGlp, fees} = await loadFixture(deployGLPVault);
             await vaultManager.connect(u1).deposit(toN(1000), toN(2), 0, 0);
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(2000));
             expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(1000); 
@@ -56,6 +56,23 @@ describe("VaultManager checks", function(){
             expect(await oGlp.balanceOf(u1.address)).to.equal(toN(1000));
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
             await vaultManager.connect(u1).withdraw(vaultManager.getBurnableShares(u1.address), 0, 0);
+            expect(Math.round(await glp.balanceOf(u1.address)/1e18)).to.equal(999); //checking withdrawal balance
+            expect(await oGlp.balanceOf(u1.address)).to.equal(1250000000000);
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
+        });
+
+        it("Deposit 1000GLP, with leverage and deleverage withdraw max - no withdrawal fees", async function(){
+            const {owner, glp, u1, doUSDC, vaultManager, oGlp, fees} = await loadFixture(deployGLPVault);
+            fees.setWithdrawalFee(0);
+            fees.setUserMFee(0);
+            await vaultManager.connect(u1).deposit(toN(1000), toN(2), 0, 0);
+            expect(await oGlp.balanceOf(u1.address)).to.equal(toN(2000));
+            expect(Math.ceil(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(1000); 
+            await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
+            expect(await oGlp.balanceOf(u1.address)).to.equal(toN(1000));
+            expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
+            await vaultManager.connect(u1).withdraw(vaultManager.getBurnableShares(u1.address), 0, 0);
+            expect(Math.round(await glp.balanceOf(u1.address)/1e18)).to.equal(1000); //checking withdrawal balance
             expect(await oGlp.balanceOf(u1.address)).to.equal(1250000000000);
             expect(await doUSDC.balanceOf(u1.address)).to.equal(1); 
         });

@@ -69,5 +69,6 @@ library Constants {
     uint256 constant LiquidatorFee = 80e18; // 80%
     uint256 constant RewardToOLVHolders = 20e18; //20% 
     uint256 constant YieldFeeLimit = 30e18; // 30%
-    uint256 constant WithdrawalFee = 20e18; // 0.1%
+    uint256 constant WithdrawalFee = 0.1e18; // 0.1%
+    uint256 constant UserManagementFee = 1e18; // 1%
 }

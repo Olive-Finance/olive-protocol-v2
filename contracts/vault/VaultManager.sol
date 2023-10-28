@@ -248,14 +248,14 @@ contract VaultManager is IVaultManager, Allowed {
         require(IERC20(vaultCore.getLedgerToken()).balanceOf(_user) >= _shares, "VM: Shares overflow");
         require(_shares <= this.getBurnableShares(_user), "VM: Over leveraged");
 
-        uint256 position = vaultCore.getPosition(_user); // This is for calculating max fees
+        uint256 wtdAmount = (_shares * vaultCore.getPPS())/Constants.PINT; // This is for calculating max fees
         (uint256 userFees, uint256 timestamp) = computeFeesForUser(_user, false); // Computing the accumulated fees
         vaultCore.burnShares(_user, _shares);
         uint256 value = _redeem(_shares);
-        uint256 chargedFees = chargeFee(_user, userFees, timestamp, position);
+        uint256 chargedFees = chargeFee(_user, userFees, timestamp, wtdAmount);
         vaultCore.transferAsset(_user, value-chargedFees);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
-        emit Burn(address(this), _user, _shares, (_shares * vaultCore.getPPS()/Constants.PINT));
+        emit Burn(address(this), _user, _shares, wtdAmount);
         return value;
     }
 
@@ -277,8 +277,8 @@ contract VaultManager is IVaultManager, Allowed {
         return (newFee, timestamp);
     }
 
-    function chargeFee(address _user, uint256 _fee, uint256 _timestamp, uint256 _position) public returns (uint256) {
-        uint256 maxFee = (_position * fees.getWithdrawalFee())/Constants.HUNDRED_PERCENT;
+    function chargeFee(address _user, uint256 _fee, uint256 _timestamp, uint256 _wtdAmount) public returns (uint256) {
+        uint256 maxFee = (_wtdAmount * fees.getWithdrawalFee())/Constants.HUNDRED_PERCENT;
         uint256 toCharge = _fee > maxFee ? _fee : maxFee; // Max fee is charged
         if (toCharge == 0) {
             return toCharge;

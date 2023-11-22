@@ -100,8 +100,8 @@ contract OliveManager is IRewardManager, Allowed {
 
     function getNonSlashRate(uint8 timeInDays) internal view returns (uint8) {
         uint256 minDays = minVestingPeriod / Constants.ONE_DAY;
-        uint256 slope = (Constants.FIFTY_DAYS * Constants.PINT * Constants.ONE_DAY ) / (maxVestingPeriod - minVestingPeriod); // Constants
-        uint256 result = Constants.FIFTY_DAYS + ((timeInDays - minDays) * slope) / Constants.PINT;
+        uint256 slope = (Constants.FIFTY * Constants.PINT * Constants.ONE_DAY ) / (maxVestingPeriod - minVestingPeriod); // Constants
+        uint256 result = Constants.FIFTY + ((timeInDays - minDays) * slope) / Constants.PINT;
         return uint8(result) ;
     }
 

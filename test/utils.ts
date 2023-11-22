@@ -15,6 +15,7 @@ export async function deployLendingPool() {
     const u2 = accounts[2];
     const u3 = accounts[3];
     const treasury = accounts[4];
+    const u5 = accounts[5];
 
     // Following are the asset tokens which each of the pools use
     // USDC
@@ -43,14 +44,17 @@ export async function deployLendingPool() {
     await fees.deployed();
     await fees.setTreasury(treasury.address);
 
+    const Limit = await ethers.getContractFactory("Limit");
+    const limit = await Limit.deploy();
+    await limit.deployed();
 
     // USDC Lending pool
     const LPUSDC = await ethers.getContractFactory("LendingPool");
-    const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address);
+    const pool = await LPUSDC.deploy(aUSDC.address, doUSDC.address, usdc.address, rcl.address, limit.address);
     
     await pool.deployed();
 
-    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury};
+    return {owner, u1, u2, u3, u5, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury, limit};
 }
 
 export async function deployStategy() {
@@ -82,7 +86,7 @@ export async function deployStategy() {
 }
 
 export async function deployGLPVault() {
-    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees} = await loadFixture(deployLendingPool);
+    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, limit} = await loadFixture(deployLendingPool);
     await loadFixture(setupLendingPool);
     const {glp, wETH, sGlp, stgy} = await loadFixture(deployStategy);
 
@@ -99,7 +103,7 @@ export async function deployGLPVault() {
     const glpMockManager = await GLPManager.deploy(glp.address);
     await glpMockManager.deployed();
     await glp.grantRole(glpMockManager.address);
-    await usdc.grantRole(glpMockManager.address);
+    await usdc.grantRole(glpMockManager.address); 
 
     const GLPMockRouter = await ethers.getContractFactory("GLPMock");
     const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
@@ -126,20 +130,22 @@ export async function deployGLPVault() {
     await glpVault.setRewardsRouter(glpMockRouter.address);
     await glpVault.setVaultManager(vaultManager.address);
     await glpVault.setVaultKeeper(vaultKeeper.address);
-    await glpVault.setLendingPool(pool.address);
+    await glpVault.setLendingPool(pool.address); //todo
     await glpVault.setLeverage(ethers.utils.parseUnits("5", 18));
     await glpVault.setPriceHelper(phMock.address);
     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
     await glpVault.setStrategy(stgy.address);
 
     await pool.grantRole(vaultKeeper.address); // For enabling the settle
+
+    await limit.setLimit(glpVault.address, ethers.utils.parseUnits('10', 36));
     
     // set allowances
     await glpVault.setAllowance(glp.address, stgy.address, true);
     await glpVault.setAllowance(usdc.address, pool.address, true);
     await glpVault.setAllowance(usdc.address, glpMockManager.address, true);
-
-    const ArbSysMock = await ethers.getContractFactory("ArbSysMock");
+ 
+    const ArbSysMock = await ethers.getContractFactory("ArbSysMock"); 
     const arbSys = await ArbSysMock.deploy();
     await arbSys.deployed();
     await glpVault.setArbSysAddress(arbSys.address);
@@ -228,7 +234,7 @@ export async function deployGLPVaultKeeper() {
 }
 
 export async function setupLendingPool() {
-    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury} = await loadFixture(deployLendingPool);
+    const {owner, u1, u2, u3, u5, usdc, aUSDC, doUSDC, rcl, pool, fees, treasury, limit} = await loadFixture(deployLendingPool);
     await pool.grantRole(u1.address);
     await pool.grantRole(u2.address);
     await aUSDC.grantRole(pool.address);
@@ -238,8 +244,12 @@ export async function setupLendingPool() {
     await usdc.connect(u1).approve(pool.address, toN(1e20));
     await usdc.connect(u2).approve(pool.address, toN(1e20));
 
+    await limit.setPool(pool.address);
+    await limit.setLimit(u2.address, toN(500));
+    await limit.setLimit(u5.address, toN(2200, 6));
+
     await pool.setFees(fees.address);
-    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool};
+    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, u5, treasury, limit, fees};
 }
 
 export async function deployOliveManager() {
@@ -281,4 +291,191 @@ export async function deployOliveManager() {
     
     await wETH.mint(owner.address, toN(100));
     return {oliveManager, esOlive, olive, owner, u1, u2, u3, wETH, treasury};
+}
+
+export async function deployTwoVaults(){
+    const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, rcl, pool, fees, limit} = await loadFixture(deployLendingPool);
+    await loadFixture(setupLendingPool);
+
+    const {glp, wETH, sGlp, stgy} = await loadFixture(deployStategy);
+
+     // Assset is GLP 
+     const Token = await ethers.getContractFactory("OToken");
+     const oGlp = await Token.deploy('oGLP Token', 'oGLP', 18);
+     await oGlp.deployed();
+ 
+     const GLPVault = await ethers.getContractFactory("GLPVault");
+     const glpVault = await GLPVault.deploy();
+     await glpVault.deployed();
+ 
+     const GLPManager = await ethers.getContractFactory("GLPMockManager");
+     const glpMockManager = await GLPManager.deploy(glp.address);
+     await glpMockManager.deployed();
+     await glp.grantRole(glpMockManager.address);
+     await usdc.grantRole(glpMockManager.address); 
+ 
+     const GLPMockRouter = await ethers.getContractFactory("GLPMock");
+     const glpMockRouter = await GLPMockRouter.deploy(glpMockManager.address);
+     await glpMockRouter.deployed();
+     await usdc.grantRole(glpMockManager.address);
+ 
+     const PriceHelperMock = await ethers.getContractFactory("PriceHelperMock");
+     const phMock = await PriceHelperMock.deploy();
+     await phMock.deployed();
+ 
+     // setting up the GLP core
+ 
+     const VaultManager = await ethers.getContractFactory("VaultManager");
+     const vaultManager = await VaultManager.deploy();
+     await vaultManager.deployed();
+ 
+     const VaultKeeper = await ethers.getContractFactory("VaultKeeper");
+     const vaultKeeper = await VaultKeeper.deploy();
+     await vaultKeeper.deployed();
+ 
+     await stgy.setFees(fees.address);
+ 
+     // Setting the parameters for glp vault core
+     await glpVault.setRewardsRouter(glpMockRouter.address);
+     await glpVault.setVaultManager(vaultManager.address);
+     await glpVault.setVaultKeeper(vaultKeeper.address);
+     await glpVault.setLendingPool(pool.address); //todo
+     await glpVault.setLeverage(ethers.utils.parseUnits("5", 18));
+     await glpVault.setPriceHelper(phMock.address);
+     await glpVault.setTokens(glp.address, oGlp.address, sGlp.address);
+     await glpVault.setStrategy(stgy.address);
+ 
+     await pool.grantRole(vaultKeeper.address); // For enabling the settle
+ 
+     await limit.setLimit(glpVault.address, toN(10, 36));
+     
+     // set allowances
+     await glpVault.setAllowance(glp.address, stgy.address, true);
+     await glpVault.setAllowance(usdc.address, pool.address, true);
+     await glpVault.setAllowance(usdc.address, glpMockManager.address, true);
+  
+     const ArbSysMock = await ethers.getContractFactory("ArbSysMock"); 
+     const arbSys = await ArbSysMock.deploy();
+     await arbSys.deployed();
+     await glpVault.setArbSysAddress(arbSys.address);
+     
+     await oGlp.grantRole(glpVault.address);
+ 
+     await stgy.setGLPRouters(glpMockRouter.address, glpMockRouter.address);
+     await phMock.setPriceOf(usdc.address, ethers.utils.parseUnits('1', 18));
+     await phMock.setPriceOf(wETH.address, ethers.utils.parseUnits('1000', 18));
+ 
+     await pool.grantRole(vaultManager.address);
+ 
+     // Setting the vault manager addresses
+     await vaultManager.setVaultCore(glpVault.address);
+     await vaultManager.setFees(fees.address);
+     
+     // Setting the vault keeper addresses
+     await vaultKeeper.setVaultCore(glpVault.address);
+     await vaultKeeper.setFees(fees.address);
+     await vaultKeeper.setVaultManager(vaultManager.address);
+ 
+     await fees.grantRole(vaultKeeper.address);
+     await fees.grantRole(vaultManager.address);
+     await stgy.grantRole(vaultManager.address);
+     await stgy.grantRole(vaultKeeper.address);
+ 
+     await stgy.setHandler(glpVault.address, vaultManager.address, true);
+     await stgy.setHandler(glpVault.address, vaultKeeper.address, true);
+ 
+     await glp.mint(u1.address, toN(1000));
+     await glp.connect(u1).approve(vaultManager.address, toN(10000000));
+ 
+     await usdc.mint(u3.address, toN(100));
+     await usdc.connect(u3).approve(pool.address, toN(10000000000));
+     await pool.connect(u3).supply(toN(1));  
+ 
+    //  return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, 
+    //      rcl, pool, glp, wETH, sGlp, stgy, oGlp, glpVault, vaultManager, vaultKeeper, phMock, glpMockManager, fees, glpMockRouter}
+
+    // Strategy token
+    const sGlp1 = await Token.deploy('S Token', 'sToken', 18);
+    await sGlp1.deployed();
+
+    // Strategy contract
+    const Strategy = await ethers.getContractFactory('GLPStrategy');
+    const stgy1 = await Strategy.deploy(glp.address, sGlp1.address);
+    await stgy1.deployed();
+
+
+    await sGlp1.grantRole(stgy1.address);
+
+    const Fees = await ethers.getContractFactory("Fees");
+    const fees1 = await Fees.deploy();
+    await fees1.deployed();
+    await fees1.setTreasury(u3.address);
+    
+    // Assset is GLP 
+    const oGlp1 = await Token.deploy('oGLP Token', 'oGLP', 18);
+    await oGlp1.deployed();
+
+    const glpVault1 = await GLPVault.deploy();
+    await glpVault1.deployed();
+
+    // setting up the GLP core
+    const vaultManager1 = await VaultManager.deploy();
+    await vaultManager1.deployed();
+
+    const vaultKeeper1 = await VaultKeeper.deploy();
+    await vaultKeeper1.deployed();
+
+    await stgy1.setFees(fees1.address);
+
+    // Setting the parameters for glp vault core
+    await glpVault1.setRewardsRouter(glpMockRouter.address);
+    await glpVault1.setVaultManager(vaultManager1.address);
+    await glpVault1.setVaultKeeper(vaultKeeper1.address);
+    await glpVault1.setLendingPool(pool.address); //todo
+    await glpVault1.setLeverage(ethers.utils.parseUnits("5", 18));
+    await glpVault1.setPriceHelper(phMock.address);
+    await glpVault1.setTokens(glp.address, oGlp1.address, sGlp1.address);
+    await glpVault1.setStrategy(stgy1.address);
+
+    await pool.grantRole(vaultKeeper1.address); // For enabling the settle
+
+    await limit.setLimit(glpVault1.address, toN(10, 36));
+    
+    // set allowances
+    await glpVault1.setAllowance(glp.address, stgy1.address, true);
+    await glpVault1.setAllowance(usdc.address, pool.address, true);
+    await glpVault1.setAllowance(usdc.address, glpMockManager.address, true);
+ 
+    await glpVault1.setArbSysAddress(arbSys.address);
+    
+    await oGlp1.grantRole(glpVault1.address);
+
+    await stgy1.setGLPRouters(glpMockRouter.address, glpMockRouter.address);
+    await sGlp1.grantRole(stgy1.address);
+
+    await pool.grantRole(vaultManager1.address);
+
+    // Setting the vault manager addresses
+    await vaultManager1.setVaultCore(glpVault1.address);
+    await vaultManager1.setFees(fees1.address);
+    
+    // Setting the vault keeper addresses
+    await vaultKeeper1.setVaultCore(glpVault.address);
+    await vaultKeeper1.setFees(fees1.address);
+    await vaultKeeper1.setVaultManager(vaultManager.address);
+
+    await fees1.grantRole(vaultKeeper1.address);
+    await fees1.grantRole(vaultManager1.address);
+    await stgy1.grantRole(vaultManager1.address);
+    await stgy1.grantRole(vaultKeeper1.address);
+
+    await stgy1.setHandler(glpVault1.address, vaultManager1.address, true);
+    await stgy1.setHandler(glpVault1.address, vaultKeeper1.address, true);
+
+    await usdc.mint(u3.address, toN(100));
+    await usdc.connect(u3).approve(pool.address, toN(10000000000));
+    await pool.connect(u3).supply(toN(1));  
+
+    return {owner, u1, u2, u3, usdc, aUSDC, doUSDC, glp,
+         glpVault, glpVault1, vaultManager, vaultManager1}
 }

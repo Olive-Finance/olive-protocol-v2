@@ -57,7 +57,7 @@ contract ESOlive is ERC20Votes, Governable {
 
     function burn(address _user, uint256 _amount) external onlyAllowed returns (bool) {
         address caller = msg.sender;
-             require(balanceOf(_user) >= _amount, "esOLIVE: Insufficient balance");
+        require(balanceOf(_user) >= _amount, "esOLIVE: Insufficient balance");
         if (caller != address(oliveMgr)) { // todo check any contract is calling this in any usecase
             oliveMgr.refreshReward(_user);
         }

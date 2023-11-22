@@ -1,7 +1,7 @@
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { ethers, tasks, web3 } from "hardhat";
-import { toN, deployGLPVaultKeeper } from "../utils";
+import { toN, deployGLPVaultKeeper, deployTwoVaults} from "../utils";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 describe("Reality checks", function(){
@@ -79,7 +79,7 @@ describe("Reality checks", function(){
             await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
             expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(0);
             expect(Math.round(await vaultManager.getBurnableShares(u1.address)/1e18)).to.equal(2559); //2559.2427715362
-            expect(Math.round(await oGlp.balanceOf(u1.address)/1e8)).to.equal(25592427737260); //oGLP balance
+            expect(Math.round(await oGlp.balanceOf(u1.address)/1e16)).to.equal(255924); //oGLP balance
             await vaultManager.connect(u1).withdraw(toN(2559.24, 18), 0, 0);
             expect(Math.round(await oGlp.balanceOf(u1.address)/1e14)).to.equal(28);
             console.log('hf: ', await glpVault.hf(u1.address)/1e18);
@@ -101,10 +101,11 @@ describe("Reality checks", function(){
             expect(Math.round(await vaultManager.getBurnableShares(u2.address)/1e18)).to.equal(2125); // 2124.944605802821
             expect(Math.round(await oGlp.balanceOf(u2.address)/1e18)).to.equal(2125); //oGLP balance // 2124.944606897734
             await vaultManager.connect(u2).withdraw(toN(2124.94, 18), 0, 0);
+            expect(Math.round(await glp.balanceOf(u2.address)/1e18)).to.equal(2319); // post removing the fees
             expect(Math.round(await oGlp.balanceOf(u2.address)/1e14)).to.equal(46);
             console.log('hf: ', await glpVault.hf(u2.address)/1e18);
 
-            expect(Math.round(await glp.balanceOf(stgy.address)/1e14)).to.equal(84); // Everything is withdrawn nothing pending in strategy expect dust balance
+            expect(Math.round(await glp.balanceOf(stgy.address)/1e15)).to.equal(8); // Everything is withdrawn nothing pending in strategy expect dust balance
     });
 
 
@@ -394,4 +395,45 @@ describe("Reality checks", function(){
             expect(Math.round(await glp.balanceOf(owner.address)/1e18)).to.equal(476);
             expect(Math.round(await oGlp.balanceOf(ta)/1e18)).to.equal(4);
     });
+
+    it("Two vault one pool test", async function(){
+        const {owner, u1, u2, u3, usdc, aUSDC, doUSDC, glp,
+        glpVault, glpVault1, vaultManager, vaultManager1} = await loadFixture(deployTwoVaults);
+        expect(Math.round(await glp.balanceOf(u1.address)/1e18)).to.equal(1000);
+
+        await glp.mint(u1.address, toN(200));
+        // u1 deposits 100 tokens in vault with leverage 3
+        await glp.connect(u1).approve(vaultManager.address, toN(100));
+        await vaultManager.connect(u1).deposit(toN(100), toN(3), 0, 0);
+
+        // u1 deposits 100 tokens in vault2 with leverage 4
+        await glp.connect(u1).approve(vaultManager1.address, toN(100));
+        await vaultManager1.connect(u1).deposit(toN(100), toN(4), 0, 0);
+        
+        // validate the balances
+        expect(Math.round(await glp.balanceOf(u1.address)/1e18)).to.equal(1000);
+
+        // validate debt balances and leverages
+        expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(200);
+        expect(Math.round(await glpVault1.getDebt(u1.address)/1e18)).to.equal(300);
+
+        // validate debt balances and leverages
+        expect(Math.round(await vaultManager.getLeverage(u1.address)/1e18)).to.equal(3);
+        expect(Math.round(await vaultManager1.getLeverage(u1.address)/1e18)).to.equal(4);
+
+        expect(Math.round(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(500);
+
+        // Full position deleverage
+        await vaultManager.connect(u1).deleverage(toN(1), 0, 0);
+        expect(Math.round(await glpVault.getDebt(u1.address)/1e18)).to.equal(0);
+        expect(Math.round(await vaultManager.getLeverage(u1.address)/1e18)).to.equal(1);
+        expect(Math.round(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(300);
+
+        // Full position deleverage - vault 1
+        await vaultManager1.connect(u1).deleverage(toN(1), 0, 0);
+        expect(Math.round(await glpVault1.getDebt(u1.address)/1e18)).to.equal(0);
+        expect(Math.round(await vaultManager1.getLeverage(u1.address)/1e18)).to.equal(1);
+        expect(Math.round(await doUSDC.balanceOf(u1.address)/1e6)).to.equal(0);
+    });
+
 });

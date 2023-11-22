@@ -21,6 +21,7 @@ library Constants {
     // Limits 
     uint256 constant MAX_PERFORMANCE_FEE = 20e18; 
     uint256 constant MAX_MANAGEMENT_FEE = 5e18;
+    uint256 constant MAX_WITHDRAWAL_FEE = 1e18; //1%
 
     uint256 constant MAX_LIQUIDATION_FEE = 10e18; //10% 
     uint256 constant MAX_LIQUIDATOR_FEE = 50e18; //50% of Liquidation fee
@@ -33,7 +34,7 @@ library Constants {
     uint256 constant OLIVE_MAX_SUPPLY = 1000_000_000 * 1e18;
     uint256 constant ESOLIVE_MAX_EMISSION = 400_000_000 * 1e18;
 
-    // Constants for Meta Manager & Time periods
+    // Constants for Manager & Time periods
     uint256 constant YEAR_IN_SECONDS = 365 days;
     uint256 constant VESTING_PERIOD = 60 days;
     uint256 constant REWARDS_PAYOUT_PERIOD = 30 days;
@@ -59,13 +60,15 @@ library Constants {
     uint256 constant SETTING_4_BOOST = 100e18; // 100%
 
     // Magic number definition
-    uint256 constant FIFTY_DAYS = 50;
+    uint256 constant FIFTY = 50;
 
     // Default fee values
     uint256 constant ManagementFee = 2e18; // 2% 
     uint256 constant PerformanceFee = 10e18; // 10%
-    uint256 constant LiquidationFee = 5e18; // 5%
+    uint256 constant LiquidationFee = 5e18; // 5% -- Set in the contracts
     uint256 constant LiquidatorFee = 80e18; // 80%
     uint256 constant RewardToOLVHolders = 20e18; //20% 
     uint256 constant YieldFeeLimit = 30e18; // 30%
+    uint256 constant WithdrawalFee = 0.1e18; // 0.1%
+    uint256 constant UserManagementFee = 1e18; // 1%
 }

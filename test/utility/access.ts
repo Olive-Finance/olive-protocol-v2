@@ -231,7 +231,7 @@ describe ("Access validations", function () {
         const allowedRevertError: string = 'ALW: Insufficient privilages';
         await pool.revokeRole(u1.address);
         await expect(pool.connect(u1).borrow(u2.address, u2.address, toN(10))).to.be.revertedWith(allowedRevertError);
-        await expect(pool.connect(u1).repayWithSettle(u2.address, u2.address, toN(10), toN(1))).to.be.revertedWith(allowedRevertError);
+        await expect(pool.connect(u1).repayWithSettle(u2.address, u2.address, u2.address, toN(10), toN(1))).to.be.revertedWith(allowedRevertError);
     });
 
 

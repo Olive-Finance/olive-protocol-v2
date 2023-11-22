@@ -83,7 +83,7 @@ contract GLPVault is VaultCore {
     function getDebt(address _user) public view override returns (uint256) {
         require(_user != address(0), "GLPC: Invalid address");
         ILendingPool pool = ILendingPool(lendingPool);
-        return getTokenValueInAsset(pool.wantToken(), pool.getDebt(_user));
+        return getTokenValueInAsset(pool.wantToken(), pool.getDebtByVault(address(this), _user));
     }
 
     function getCollateral(address _user) external view override returns (uint256) {

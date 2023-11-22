@@ -7,8 +7,8 @@ interface ILendingPool {
     function supply(uint256 _amount) external returns (bool);
     function withdraw(uint256 _shares) external returns (bool);
     function borrow(address _to, address _user, uint256 _amount) external returns (uint256);
-    function repay(address _from, address _user, uint256 _amount) external returns (bool);
-    function repayWithSettle(address _from, address _user, uint256 _amount, uint256 _sFactor) external returns (bool);
+    function repay(address _from, address _vault, address _user, uint256 _amount) external returns (bool);
+    function repayWithSettle(address _from, address _vault, address _user, uint256 _amount, uint256 _sFactor) external returns (bool);
 
     // View functions
     function borrowRate() external view returns (uint256);
@@ -17,7 +17,11 @@ interface ILendingPool {
     function debtToken() external view returns (address);
     function wantToken() external view returns (address);
     function getDebt(address _user) external view returns (uint256);
+    function getDebtByVault(address _vault, address _user) external view returns (uint256);
     function getBalance(address _user) external view returns (uint256);
+
+    function getMaxBorrowableAmount(address _to) external view returns (uint256);
+    function getMaxBorrableAmount(address _to) external view returns (uint256); // temporary till the UI gets fixed
 
     //events
     event Fund(address indexed _caller, address indexed _depositor, uint256 _amount);

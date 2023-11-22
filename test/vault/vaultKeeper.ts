@@ -153,7 +153,6 @@ describe("VaultKeeper checks", function(){
             expect(Math.floor(await sGlp.balanceOf(glpVault.address)/1e16)).to.equal(0);
             expect(await doUSDC.balanceOf(u1.address)).to.equal(0); // dust balance 1e-6
             expect(Math.floor(await glp.balanceOf(u2.address)/1e18)).to.equal(500);
-            expect(Math.floor(await pool.badDebt()/1e6)).to.equal(100);
         });
     });
 

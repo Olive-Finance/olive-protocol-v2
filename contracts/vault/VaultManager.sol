@@ -123,11 +123,12 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _shares = (_amount * Constants.PINT) / vaultCore.getPPS();
         vaultCore.mintShares(_user, _shares);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
+        emit Mint(address(this), _user, _shares, _amount);
         return _shares;
     }
 
     function _repay(address _user, uint256 _amount) internal returns (uint256) {
-        ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), _user, _amount);
+        ILendingPool(vaultCore.getLendingPool()).repay(address(vaultCore), address(vaultCore), _user, _amount);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
         return _amount;
     }
@@ -149,6 +150,10 @@ contract VaultManager is IVaultManager, Allowed {
         require(_user != address(0) && _user != address(this), "VM: Invalid Address");
         address want = ILendingPool(vaultCore.getLendingPool()).wantToken();
         uint256 debtInWant = vaultCore.getTokenValueforAsset(want, _debt);
+        // This happens in a rare case when the debt is too small in glp and due to usd precission it becomes 0
+        if (debtInWant == 0) { 
+            return 0;
+        }
         uint256 borrowed = _borrow(_user, debtInWant);
         return vaultCore.buy(want, borrowed);
     }
@@ -156,29 +161,32 @@ contract VaultManager is IVaultManager, Allowed {
     // Vault functions
     function deposit(uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage)
      external override blockCheck returns (bool) {
-        return _deposit(msg.sender, _amount, _leverage, _expShares, _slippage);
+        return _deposit(msg.sender, _amount, _leverage, _expShares, _slippage, false);
     }
 
     function leverage(uint256 _leverage, uint256 _expShares, uint256 _slippage) 
      external override blockCheck  returns (bool) {
-        return _deposit(msg.sender, 0, _leverage, _expShares, _slippage);
+        require (_leverage > getLeverage(msg.sender), "VM: New leverage < current leverage");
+        return _deposit(msg.sender, 0, _leverage, _expShares, _slippage, true);
     }
 
-    function _getDebt(address _user, uint256 _curLeverage, uint256 _toLeverage, uint256 _amount) internal view returns (uint256) {
-        uint256 collateral = vaultCore.getCollateral(_user);
-        // As the leverage increases based on time, and precision is maintained at 18, this correction is needed. 
-        // This ensures the _toLeverage should always be greater than _curLeverage
-        uint256 newLeverage = _curLeverage > _toLeverage ? _curLeverage: _toLeverage; 
-        uint256 debt = (collateral * (newLeverage - _curLeverage)) + (_amount * (newLeverage - vaultCore.getMinLeverage()));
+    function _getDebt(address _user, uint256 _curLeverage, uint256 _toLeverage, uint256 _amount, bool onlyLeverage) internal view returns (uint256) {
+        uint256 debt;
+        if (onlyLeverage) {
+            debt = vaultCore.getCollateral(_user) * (_toLeverage - _curLeverage);
+        } else{
+            debt = _amount * (_toLeverage - vaultCore.getMinLeverage());
+        }
         return (debt / Constants.PINT); 
     }
 
-    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
+    function _deposit(address _user, uint256 _amount, uint256 _leverage, uint256 _expShares, uint256 _slippage, bool onlyLeverage) whenNotPaused nonReentrant hfCheck internal returns (bool) {
         uint256 curLeverage = getLeverage(_user);
+        computeFeesForUser(_user, true); // Computing the accumulated fees
         require(_leverage >= vaultCore.getMinLeverage() && _leverage <= vaultCore.getMaxLeverage(),
             "VM: Invalid leverage value"
         );
-        uint256 debt = _getDebt(_user, curLeverage, _leverage, _amount);
+        uint256 debt = _getDebt(_user, curLeverage, _leverage, _amount, onlyLeverage);
         uint256 bought;
         IERC20(vaultCore.getAssetToken()).transferFrom(_user, address(vaultCore), _amount);
         if (debt > 0) {
@@ -210,10 +218,12 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 _leverage
     ) internal hfCheck returns (uint256) {
         uint256 _userLeverage = getLeverage(_user);
+        computeFeesForUser(_user, true); // Computing the accumulated fees
         require(_leverage < _userLeverage, "VM: Invalid leverage");
         uint256 _shares = ((_userLeverage - _leverage) * vaultCore.getCollateral(_user)) / vaultCore.getPPS();
         vaultCore.burnShares(_user, _shares);
         uint256 sold = vaultCore.sell(ILendingPool(vaultCore.getLendingPool()).wantToken(), _redeem(_shares));
+        emit Burn(address(this), _user, _shares, (_shares * vaultCore.getPPS()/Constants.PINT));
         return _repay(_user, sold);
     }
 
@@ -238,10 +248,14 @@ contract VaultManager is IVaultManager, Allowed {
         require(IERC20(vaultCore.getLedgerToken()).balanceOf(_user) >= _shares, "VM: Shares overflow");
         require(_shares <= this.getBurnableShares(_user), "VM: Over leveraged");
 
+        uint256 wtdAmount = (_shares * vaultCore.getPPS())/Constants.PINT; // This is for calculating max fees
+        (uint256 userFees, uint256 timestamp) = computeFeesForUser(_user, false); // Computing the accumulated fees
         vaultCore.burnShares(_user, _shares);
         uint256 value = _redeem(_shares);
-        vaultCore.transferAsset(_user, value);
+        uint256 chargedFees = chargeFee(_user, userFees, timestamp, wtdAmount);
+        vaultCore.transferAsset(_user, value-chargedFees);
         userTxnBlockStore[_user] = vaultCore.blockNumber();
+        emit Burn(address(this), _user, _shares, wtdAmount);
         return value;
     }
 
@@ -249,5 +263,28 @@ contract VaultManager is IVaultManager, Allowed {
         uint256 newFee = (balance() * fees.getMFee() * 
         (block.timestamp - fees.getLastUpdatedAt())) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
         fees.setFee(fees.getAccumulatedFee() + newFee, block.timestamp);
+    }
+
+    function computeFeesForUser(address _user, bool _save) internal returns (uint256, uint256) {
+        uint256 timestamp = block.timestamp;
+        (uint256 currentFee, uint256 updatedAt) = fees.getAccumulatedFeeForUser(_user);
+        uint256 newFee = (vaultCore.getPosition(_user)* fees.getUserMFee() * 
+        (timestamp - updatedAt)) / (Constants.HUNDRED_PERCENT * Constants.YEAR_IN_SECONDS);
+        newFee += currentFee;
+        if (_save) {
+            fees.setFeeForUser(_user, newFee, timestamp);
+        }
+        return (newFee, timestamp);
+    }
+
+    function chargeFee(address _user, uint256 _fee, uint256 _timestamp, uint256 _wtdAmount) public returns (uint256) {
+        uint256 maxFee = (_wtdAmount * fees.getWithdrawalFee())/Constants.HUNDRED_PERCENT;
+        uint256 toCharge = _fee > maxFee ? _fee : maxFee; // Max fee is charged
+        if (toCharge == 0) {
+            return toCharge;
+        }
+        fees.setFeeForUser(_user, 0, _timestamp);
+        vaultCore.transferAsset(fees.getTreasury(), toCharge); // Transferring the fee to treasury
+        return toCharge;
     }
 }
